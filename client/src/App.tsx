@@ -208,33 +208,42 @@ function App() {
   // SINCRONIZAÇÃO: RELÓGIO QUE OBSERVA O ADMIN
   // ===========================================
   
-  // RELÓGIO: A cada 5 segundos, se for admin e estiver tocando, salva o estado no Firebase
+  // Refs para evitar re-renders no relógio
+  const currentSongRef = useRef(currentSong);
+  const playerQueueRef = useRef(playerQueue);
+  const currentSongIndexRef = useRef(currentSongIndex);
+  
+  // Atualiza refs quando valores mudam (sem causar re-render do relógio)
+  useEffect(() => { currentSongRef.current = currentSong; }, [currentSong]);
+  useEffect(() => { playerQueueRef.current = playerQueue; }, [playerQueue]);
+  useEffect(() => { currentSongIndexRef.current = currentSongIndex; }, [currentSongIndex]);
+  
+  // RELÓGIO: A cada 10 segundos, se for admin e estiver tocando, salva o estado no Firebase
   useEffect(() => {
-    if (!isBroadcastMaster || !isPlaying || !currentSong) return;
+    if (!isBroadcastMaster) return;
     
     const saveInterval = setInterval(() => {
-      if (audioRef.current && currentSong) {
-        const now = Date.now();
-        // Só salva se passou mais de 3 segundos desde o último save
-        if (now - lastBroadcastSave.current > 3000) {
-          const currentTime = audioRef.current.currentTime;
-          saveBroadcastState({
-            currentSong: currentSong,
-            queue: playerQueue,
-            currentIndex: currentSongIndex,
-            isPlaying: true,
-            startedAt: now - (currentTime * 1000), // Calcula quando a música começou
-            currentTime: currentTime,
-            updatedAt: now
-          });
-          lastBroadcastSave.current = now;
-          console.log(`[BROADCAST] Salvando estado: ${currentSong.title} @ ${currentTime.toFixed(1)}s`);
-        }
-      }
-    }, 5000);
+      // Só salva se estiver tocando e tiver música
+      if (!audioRef.current || audioRef.current.paused) return;
+      if (!currentSongRef.current) return;
+      
+      const now = Date.now();
+      const currentTime = audioRef.current.currentTime;
+      
+      saveBroadcastState({
+        currentSong: currentSongRef.current,
+        queue: playerQueueRef.current,
+        currentIndex: currentSongIndexRef.current,
+        isPlaying: true,
+        startedAt: now - (currentTime * 1000),
+        currentTime: currentTime,
+        updatedAt: now
+      });
+      console.log(`[BROADCAST] Salvando: ${currentSongRef.current.title} @ ${currentTime.toFixed(1)}s`);
+    }, 10000); // A cada 10 segundos
     
     return () => clearInterval(saveInterval);
-  }, [isBroadcastMaster, isPlaying, currentSong, playerQueue, currentSongIndex]);
+  }, [isBroadcastMaster]); // SÓ depende de isBroadcastMaster
 
   // OUVINTE: Subscribir ao broadcast do Firebase
   useEffect(() => {
@@ -315,37 +324,38 @@ function App() {
     }
   };
 
-  // --- AUDIO LOGIC ---
+  // --- AUDIO LOGIC (ADMIN ONLY) ---
+  // Admin: Carrega e toca a música quando currentSong muda
   useEffect(() => {
-    // Carrega a música quando muda (para todos)
-    if (currentSong && audioRef.current) {
-      const currentSrc = audioRef.current.src;
-      const songFileName = currentSong.url.split('/').pop() || '';
-      
-      // Só muda se for uma música diferente
-      if (!currentSrc.includes(songFileName)) {
-          console.log(`[AUDIO] Carregando: ${currentSong.title}`);
-          audioRef.current.src = currentSong.url;
-          audioRef.current.load();
-          
-          // Para admin, começa do início
-          // Para ouvinte, o useEffect do broadcastState cuida da sincronização
-          if (isBroadcastMaster) {
-            audioRef.current.play().then(() => setIsPlaying(true)).catch(e => {
-                console.error("Autoplay prevented:", e);
-                setIsPlaying(false);
-            });
-          }
-      } 
+    if (!isBroadcastMaster) return; // SÓ ADMIN
+    if (!currentSong || !audioRef.current) return;
+    
+    const currentSrc = audioRef.current.src;
+    const songFileName = currentSong.url.split('/').pop() || '';
+    
+    // Só muda se for uma música diferente
+    if (!currentSrc.includes(songFileName)) {
+      console.log(`[ADMIN] Carregando: ${currentSong.title}`);
+      audioRef.current.src = currentSong.url;
+      audioRef.current.load();
+      audioRef.current.play().then(() => setIsPlaying(true)).catch(e => {
+        console.error("[ADMIN] Autoplay prevented:", e);
+        setIsPlaying(false);
+      });
     }
   }, [currentSong, isBroadcastMaster]);
 
+  // Admin: Controla play/pause
   useEffect(() => {
-      if (audioRef.current) {
-          if (isPlaying && audioRef.current.paused) audioRef.current.play().catch(e => console.error(e));
-          else if (!isPlaying && !audioRef.current.paused) audioRef.current.pause();
-      }
-  }, [isPlaying]);
+    if (!isBroadcastMaster) return; // SÓ ADMIN
+    if (!audioRef.current) return;
+    
+    if (isPlaying && audioRef.current.paused) {
+      audioRef.current.play().catch(e => console.error(e));
+    } else if (!isPlaying && !audioRef.current.paused) {
+      audioRef.current.pause();
+    }
+  }, [isPlaying, isBroadcastMaster]);
 
   const togglePlay = async () => { 
     // Se é ouvinte e vai começar a tocar, sincroniza primeiro
