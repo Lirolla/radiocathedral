@@ -316,3 +316,46 @@ export const subscribeToBroadcast = (callback: (state: BroadcastState | null) =>
     }
   });
 };
+
+// Listeners (contador de ouvintes)
+export const addListener = async (listenerId: string) => {
+  try {
+    await setDoc(doc(db, "listeners", listenerId), {
+      id: listenerId,
+      connectedAt: Date.now(),
+      lastSeen: Date.now()
+    });
+  } catch (error: any) {
+    console.error("Erro ao adicionar listener:", error);
+  }
+};
+
+export const updateListenerHeartbeat = async (listenerId: string) => {
+  try {
+    await updateDoc(doc(db, "listeners", listenerId), {
+      lastSeen: Date.now()
+    });
+  } catch (error: any) {
+    console.error("Erro ao atualizar heartbeat:", error);
+  }
+};
+
+export const removeListener = async (listenerId: string) => {
+  try {
+    await deleteDoc(doc(db, "listeners", listenerId));
+  } catch (error: any) {
+    console.error("Erro ao remover listener:", error);
+  }
+};
+
+export const subscribeToListenersCount = (callback: (count: number) => void) => {
+  return onSnapshot(collection(db, "listeners"), (snapshot) => {
+    const now = Date.now();
+    // Conta apenas listeners ativos (lastSeen nos últimos 60 segundos)
+    const activeListeners = snapshot.docs.filter(doc => {
+      const data = doc.data();
+      return (now - data.lastSeen) < 60000;
+    });
+    callback(activeListeners.length);
+  });
+};

@@ -10,6 +10,9 @@
 
 ## Próximas Tarefas
 - [x] SINCRONIZAÇÃO: Home deve replicar exatamente o que o admin está tocando (AutoDJ ou Ao Vivo)
+- [x] Media Session API: Tocar em segundo plano no celular com controles na tela de bloqueio
+- [x] Auto-reconexão: Verificar conexão e reconectar automaticamente quando perder sinal
+- [x] Contador de ouvintes: Mostrar quantas pessoas estão ouvindo ao vivo
 - [ ] Ajustes de design/cores (aguardando instruções do usuário)
 - [ ] Novas funcionalidades (aguardando instruções do usuário)
 - [ ] Publicação final

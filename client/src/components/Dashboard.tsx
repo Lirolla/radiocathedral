@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Song } from '../types';
 import { MusicIcon, UsersIcon } from './Icons';
+import { subscribeToListenersCount } from '../services/dbService';
 
 interface DashboardProps {
   currentSong: Song | null;
@@ -15,10 +16,20 @@ const Dashboard: React.FC<DashboardProps> = ({
   isAutoDJ,
   onToggleAutoDJ
 }) => {
-  // Audiência Real (Sem Simulação)
-  // Em um sistema real conectado ao backend, isso viria via WebSocket/API
+  // Audiência Real (Firebase Realtime)
   const [listeners, setListeners] = useState(0);
   const [peak, setPeak] = useState(0);
+
+  useEffect(() => {
+    const unsubscribe = subscribeToListenersCount((count) => {
+      setListeners(count);
+      if (count > peak) {
+        setPeak(count);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [peak]);
 
   return (
     <div className="h-full flex flex-col gap-6 p-6 overflow-y-auto">
@@ -89,10 +100,13 @@ const Dashboard: React.FC<DashboardProps> = ({
                  <span className="text-gray-400 font-medium mb-2">ouvintes</span>
              </div>
 
-             {/* Graph Placeholder (Flat because 0 listeners) */}
-             <div className="h-16 flex items-end justify-between gap-1 mb-4 opacity-50 border-b border-gray-700">
-                 {/* Sem dados de audiência */}
-                 <div className="w-full text-center text-xs text-gray-600 py-4">Aguardando dados do servidor de streaming...</div>
+             {/* Graph Placeholder */}
+             <div className="h-16 flex items-end justify-between gap-1 mb-4 border-b border-gray-700">
+                 {listeners > 0 ? (
+                   <div className="w-full text-center text-xs text-green-500 py-4">✓ Sincronizado com Firebase</div>
+                 ) : (
+                   <div className="w-full text-center text-xs text-gray-600 py-4">Aguardando ouvintes...</div>
+                 )}
              </div>
 
              <div className="grid grid-cols-2 gap-4 text-xs text-gray-400 border-t border-gray-800 pt-4">

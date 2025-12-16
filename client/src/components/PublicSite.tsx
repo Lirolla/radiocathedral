@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Song, ThemeColor, RadioStationConfig, Playlist, Vote, InboxMessage } from '../types';
 import { PlayIcon, PauseIcon, MusicIcon, ClockIcon, PhoneIcon, MegaphoneIcon, CalendarIcon, LockIcon, StarIcon, CheckIcon, XMarkIcon, HeartIcon, MicIcon } from './Icons';
 import LoginModal from './LoginModal';
-import { subscribeToBroadcast, BroadcastState } from '../services/dbService';
+import { subscribeToBroadcast, BroadcastState, addListener, updateListenerHeartbeat, removeListener } from '../services/dbService';
 
 interface PublicSiteProps {
   currentSong: Song | null;
@@ -72,11 +72,24 @@ const PublicSite: React.FC<PublicSiteProps> = ({
   const [localSong, setLocalSong] = useState<Song | null>(null);
   const [localIsPlaying, setLocalIsPlaying] = useState(false);
   const [hasSynced, setHasSynced] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
+  const listenerIdRef = useRef<string | null>(null);
 
   // Criar elemento de áudio
   useEffect(() => {
     audioRef.current = new Audio();
     audioRef.current.crossOrigin = 'anonymous';
+    
+    // Media Session API para controles na tela de bloqueio
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.setActionHandler('play', () => {
+        audioRef.current?.play();
+      });
+      navigator.mediaSession.setActionHandler('pause', () => {
+        audioRef.current?.pause();
+      });
+    }
+    
     return () => {
       if (audioRef.current) {
         audioRef.current.pause();
@@ -84,6 +97,66 @@ const PublicSite: React.FC<PublicSiteProps> = ({
       }
     };
   }, []);
+
+  // Atualizar Media Session quando música muda
+  useEffect(() => {
+    if (localSong && 'mediaSession' in navigator) {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: localSong.title,
+        artist: localSong.artist,
+        album: config.name,
+        artwork: [
+          { src: 'https://images.unsplash.com/photo-1493225255756-d9584f8606e9?q=80&w=512', sizes: '512x512', type: 'image/jpeg' }
+        ]
+      });
+    }
+  }, [localSong, config.name]);
+
+  // Registrar listener e heartbeat
+  useEffect(() => {
+    if (!hasSynced) return;
+
+    // Gerar ID único para este listener
+    if (!listenerIdRef.current) {
+      listenerIdRef.current = `listener-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    }
+
+    const listenerId = listenerIdRef.current;
+    
+    // Adicionar listener ao Firebase
+    addListener(listenerId);
+    console.log('[LISTENER] Registrado:', listenerId);
+
+    // Heartbeat a cada 30 segundos
+    const heartbeatInterval = setInterval(() => {
+      updateListenerHeartbeat(listenerId);
+      console.log('[LISTENER] Heartbeat enviado');
+    }, 30000);
+
+    // Auto-reconexão quando perde conexão
+    const handleOnline = () => {
+      console.log('[LISTENER] Conexão restaurada');
+      setConnectionStatus('connected');
+      addListener(listenerId);
+    };
+
+    const handleOffline = () => {
+      console.log('[LISTENER] Conexão perdida');
+      setConnectionStatus('disconnected');
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    // Remover listener ao sair
+    return () => {
+      clearInterval(heartbeatInterval);
+      removeListener(listenerId);
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+      console.log('[LISTENER] Removido:', listenerId);
+    };
+  }, [hasSynced]);
 
   // Subscribir ao broadcast do Firebase
   useEffect(() => {
