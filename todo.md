@@ -12,3 +12,6 @@
 - [ ] Ajustes de design/cores (aguardando instruções do usuário)
 - [ ] Novas funcionalidades (aguardando instruções do usuário)
 - [ ] Publicação final
+
+## Bugs Reportados
+- [x] Corrigir layout quebrado - CSS não está sendo aplicado corretamente nos botões e elementos (CORRIGIDO - adicionado @import tailwindcss)
