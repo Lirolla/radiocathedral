@@ -1,8 +1,9 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Song, ThemeColor, RadioStationConfig, Playlist, Vote, InboxMessage } from '../types';
 import { PlayIcon, PauseIcon, MusicIcon, ClockIcon, PhoneIcon, MegaphoneIcon, CalendarIcon, LockIcon, StarIcon, CheckIcon, XMarkIcon, HeartIcon, MicIcon } from './Icons';
 import LoginModal from './LoginModal';
+import { getBroadcastState, subscribeToBroadcast, BroadcastState } from '../services/dbService';
 
 interface PublicSiteProps {
   currentSong: Song | null;
@@ -65,6 +66,198 @@ const PublicSite: React.FC<PublicSiteProps> = ({
   const [loveSuccess, setLoveSuccess] = useState(false);
 
   const isOnePage = config.publicTemplate === 'template2';
+
+  // ===========================================
+  // PLAYER INDEPENDENTE DA HOME (LÊ DO FIREBASE)
+  // ===========================================
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [localIsPlaying, setLocalIsPlaying] = useState(false);
+  const [localCurrentSong, setLocalCurrentSong] = useState<Song | null>(null);
+  const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
+  const [broadcastState, setBroadcastState] = useState<BroadcastState | null>(null);
+  const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const syncIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Criar elemento de áudio uma vez
+  useEffect(() => {
+    audioRef.current = new Audio();
+    audioRef.current.preload = 'auto';
+    
+    // Eventos do áudio
+    audioRef.current.onended = () => {
+      console.log('[HOME] Música terminou, re-sincronizando...');
+      syncWithBroadcast();
+    };
+    
+    audioRef.current.onerror = () => {
+      console.log('[HOME] Erro no áudio, tentando reconectar...');
+      setConnectionStatus('connecting');
+      scheduleRetry();
+    };
+
+    audioRef.current.onplaying = () => {
+      setConnectionStatus('connected');
+    };
+    
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+      if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
+      if (syncIntervalRef.current) clearInterval(syncIntervalRef.current);
+    };
+  }, []);
+
+  // Subscribir ao broadcast do Firebase
+  useEffect(() => {
+    const unsubscribe = subscribeToBroadcast((state) => {
+      setBroadcastState(state);
+      if (state?.currentSong) {
+        setLocalCurrentSong(state.currentSong);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Função para sincronizar com o broadcast
+  const syncWithBroadcast = async () => {
+    try {
+      const state = broadcastState || await getBroadcastState();
+      if (!state || !state.currentSong || !audioRef.current) {
+        console.log('[HOME] Nenhum broadcast ativo');
+        setConnectionStatus('disconnected');
+        return;
+      }
+
+      setLocalCurrentSong(state.currentSong);
+      const timeSinceStart = (Date.now() - state.startedAt) / 1000;
+      
+      // Só muda se for música diferente
+      const currentSrc = audioRef.current.src || '';
+      const newFileName = state.currentSong.url.split('/').pop() || '';
+      
+      if (!currentSrc.includes(newFileName)) {
+        console.log(`[HOME] Carregando: ${state.currentSong.title}`);
+        audioRef.current.src = state.currentSong.url;
+        audioRef.current.load();
+      }
+      
+      audioRef.current.onloadedmetadata = () => {
+        if (!audioRef.current) return;
+        const duration = audioRef.current.duration || 0;
+        
+        // Pula para o tempo correto
+        if (timeSinceStart > 0 && timeSinceStart < duration) {
+          audioRef.current.currentTime = timeSinceStart;
+          console.log(`[HOME] Pulando para ${timeSinceStart.toFixed(1)}s`);
+        }
+        
+        audioRef.current.play().then(() => {
+          setLocalIsPlaying(true);
+          setConnectionStatus('connected');
+          if (state.currentSong) setupMediaSession(state.currentSong);
+        }).catch(e => {
+          console.error('[HOME] Autoplay bloqueado:', e);
+          setConnectionStatus('disconnected');
+        });
+      };
+    } catch (error) {
+      console.error('[HOME] Erro ao sincronizar:', error);
+      setConnectionStatus('connecting');
+      scheduleRetry();
+    }
+  };
+
+  // Retry automático
+  const scheduleRetry = () => {
+    if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
+    retryTimeoutRef.current = setTimeout(() => {
+      console.log('[HOME] Tentando reconectar...');
+      syncWithBroadcast();
+    }, 5000);
+  };
+
+  // Media Session API para tocar em segundo plano
+  const setupMediaSession = (song: Song) => {
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: song.title,
+        artist: song.artist,
+        album: config.name,
+        artwork: [] // Song não tem imagem de capa
+      });
+      
+      navigator.mediaSession.setActionHandler('play', () => {
+        audioRef.current?.play();
+        setLocalIsPlaying(true);
+      });
+      
+      navigator.mediaSession.setActionHandler('pause', () => {
+        audioRef.current?.pause();
+        setLocalIsPlaying(false);
+      });
+    }
+  };
+
+  // Toggle play do player local
+  const handleLocalTogglePlay = () => {
+    if (!audioRef.current) return;
+    
+    if (localIsPlaying) {
+      audioRef.current.pause();
+      setLocalIsPlaying(false);
+      if (syncIntervalRef.current) {
+        clearInterval(syncIntervalRef.current);
+        syncIntervalRef.current = null;
+      }
+    } else {
+      setConnectionStatus('connecting');
+      syncWithBroadcast();
+      
+      // Re-sincroniza a cada 30 segundos para manter alinhado
+      syncIntervalRef.current = setInterval(() => {
+        if (localIsPlaying && audioRef.current && !audioRef.current.paused) {
+          // Verifica se precisa re-sincronizar (diferença > 5 segundos)
+          if (broadcastState && audioRef.current) {
+            const expectedTime = (Date.now() - broadcastState.startedAt) / 1000;
+            const actualTime = audioRef.current.currentTime;
+            if (Math.abs(expectedTime - actualTime) > 5) {
+              console.log('[HOME] Dessincronizado, ajustando...');
+              audioRef.current.currentTime = expectedTime;
+            }
+          }
+        }
+      }, 30000);
+    }
+  };
+
+  // Detectar perda de conexão
+  useEffect(() => {
+    const handleOnline = () => {
+      console.log('[HOME] Conexão restaurada, reconectando...');
+      if (localIsPlaying) {
+        syncWithBroadcast();
+      }
+    };
+    
+    const handleOffline = () => {
+      console.log('[HOME] Conexão perdida');
+      setConnectionStatus('connecting');
+    };
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [localIsPlaying]);
+
+  // Usar o player local em vez do prop
+  const displaySong = localCurrentSong || currentSong;
+  const displayIsPlaying = localIsPlaying;
 
   // Calculate Real Top 10
   const realTop10 = useMemo(() => {
@@ -440,30 +633,30 @@ const PublicSite: React.FC<PublicSiteProps> = ({
         
         {/* Status Badge */}
         <div className={`mb-8 inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-md text-sm font-medium ${colors.text}`}>
-            <span className={`w-2 h-2 rounded-full ${isPlaying ? 'bg-green-400 animate-pulse' : 'bg-red-400'}`}></span>
-            {isPlaying ? 'Transmitindo Agora' : 'Rádio Pausada'}
+            <span className={`w-2 h-2 rounded-full ${displayIsPlaying ? 'bg-green-400 animate-pulse' : connectionStatus === 'connecting' ? 'bg-yellow-400 animate-pulse' : 'bg-red-400'}`}></span>
+            {displayIsPlaying ? 'Ao Vivo' : connectionStatus === 'connecting' ? 'Conectando...' : 'Rádio Pausada'}
         </div>
 
         {/* Big Typography (Title) */}
         <h1 className="text-4xl md:text-7xl font-black mb-10 text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-400 drop-shadow-2xl text-center leading-tight px-4">
-            {currentSong ? currentSong.title : config.name.toUpperCase()}
+            {displaySong ? displaySong.title : config.name.toUpperCase()}
         </h1>
 
         {/* Center Player / CD */}
-        <div className="relative group cursor-pointer mb-8" onClick={onTogglePlay}>
+        <div className="relative group cursor-pointer mb-8" onClick={handleLocalTogglePlay}>
             {/* Glow Effect */}
-            <div className={`absolute -inset-4 bg-gradient-to-r ${colors.gradient} rounded-full blur-xl opacity-40 group-hover:opacity-70 transition duration-500 ${isPlaying ? 'animate-pulse' : ''}`}></div>
+            <div className={`absolute -inset-4 bg-gradient-to-r ${colors.gradient} rounded-full blur-xl opacity-40 group-hover:opacity-70 transition duration-500 ${displayIsPlaying ? 'animate-pulse' : ''}`}></div>
             
             {/* The CD / Play Button */}
             <div className="relative w-40 h-40 md:w-56 md:h-56 bg-gray-900 rounded-full border-4 border-gray-700 flex items-center justify-center shadow-2xl overflow-hidden">
                 
                 {/* Spinning Art */}
-                <div className={`absolute inset-0 bg-[url('https://images.unsplash.com/photo-1493225255756-d9584f8606e9?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-center opacity-50 ${isPlaying ? 'animate-[spin_6s_linear_infinite]' : ''}`}></div>
+                <div className={`absolute inset-0 bg-[url('https://images.unsplash.com/photo-1493225255756-d9584f8606e9?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-center opacity-50 ${displayIsPlaying ? 'animate-[spin_6s_linear_infinite]' : ''}`}></div>
                 
                 {/* Play Icon Overlay */}
                 <div className="absolute inset-0 flex items-center justify-center bg-black/30 backdrop-blur-[2px] group-hover:bg-black/10 transition">
                     <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center pl-2 shadow-lg transform group-hover:scale-110 transition-transform duration-300">
-                        {isPlaying ? (
+                        {displayIsPlaying ? (
                             <PauseIcon className="w-8 h-8 text-black" />
                         ) : (
                             <PlayIcon className="w-8 h-8 text-black" />
@@ -471,11 +664,15 @@ const PublicSite: React.FC<PublicSiteProps> = ({
                     </div>
                 </div>
             </div>
+            {/* Status de Conexão */}
+            {connectionStatus === 'connecting' && (
+              <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 text-xs text-yellow-400 animate-pulse">Conectando...</div>
+            )}
         </div>
 
         {/* Subtitle (Artist / Default Slogan) - MOVED HERE and ENLARGED */}
         <p className="text-[4vw] md:text-4xl text-gray-200 font-light tracking-wide mb-8 text-center drop-shadow-md whitespace-nowrap w-full overflow-hidden text-ellipsis px-4 max-w-full">
-            {currentSong ? currentSong.artist : "A melhor música, 24 horas por dia."}
+            {displaySong ? displaySong.artist : "A melhor música, 24 horas por dia."}
         </p>
         
         {/* Radio Slogan / Short Desc */}

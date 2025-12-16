@@ -232,6 +232,31 @@ function App() {
     }
   }, [isPlaying]);
 
+  // BROADCAST: Salva estado no Firebase a cada 10 segundos (para ouvintes da home)
+  useEffect(() => {
+    if (!isBroadcastMaster) return; // Só admin salva
+    
+    const saveInterval = setInterval(() => {
+      if (!audioRef.current || audioRef.current.paused || !currentSong) return;
+      
+      const now = Date.now();
+      const currentTime = audioRef.current.currentTime;
+      
+      saveBroadcastState({
+        currentSong: currentSong,
+        queue: playerQueue,
+        currentIndex: currentSongIndex,
+        isPlaying: true,
+        startedAt: now - (currentTime * 1000),
+        currentTime: currentTime,
+        updatedAt: now
+      });
+      console.log(`[BROADCAST] Salvando: ${currentSong.title} @ ${currentTime.toFixed(1)}s`);
+    }, 10000);
+    
+    return () => clearInterval(saveInterval);
+  }, [isBroadcastMaster, currentSong, playerQueue, currentSongIndex]);
+
   const togglePlay = () => { 
     if (!currentSong) return;
     setIsPlaying(!isPlaying);

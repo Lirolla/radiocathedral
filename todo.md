@@ -32,3 +32,6 @@
 - [x] BUG: Ouvinte fica fixo em uma música só - volta ao início em vez de acompanhar o progresso do admin (CORRIGIDO - ouvinte sincroniza ao clicar play e quando música termina)
 - [x] BUG CRÍTICO: Admin não está tocando liso - música travando (CORRIGIDO - refs para evitar re-renders, lógica de áudio isolada)
 - [x] REVERTER: Remover lógica de sincronização que está causando problemas no player do admin (FEITO - player simplificado)
+- [x] DOIS PLAYERS INDEPENDENTES: Admin toca e salva no Firebase, Home lê do Firebase e toca separadamente
+- [x] BACKGROUND PLAY: Usar Media Session API para tocar em segundo plano nos celulares
+- [x] AUTO-RECONEXÃO: Tentar reconectar automaticamente quando perder sinal de internet
