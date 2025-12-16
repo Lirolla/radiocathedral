@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Song, ThemeColor, RadioStationConfig, Playlist, Vote, InboxMessage } from '../types';
 import { PlayIcon, PauseIcon, MusicIcon, ClockIcon, PhoneIcon, MegaphoneIcon, CalendarIcon, LockIcon, StarIcon, CheckIcon, XMarkIcon, HeartIcon, MicIcon } from './Icons';
 import LoginModal from './LoginModal';
-import { subscribeToBroadcast, BroadcastState, addListener, updateListenerHeartbeat, removeListener } from '../services/dbService';
+import { subscribeToBroadcast, getBroadcastState, BroadcastState, addListener, updateListenerHeartbeat, removeListener } from '../services/dbService';
 
 interface PublicSiteProps {
   currentSong: Song | null;
@@ -204,24 +204,52 @@ const PublicSite: React.FC<PublicSiteProps> = ({
   }, [hasSynced, localSong]);
 
   // Função para o botão play da home
-  const handleHomePlay = () => {
-    if (!localSong || !audioRef.current) {
-      console.log('[HOME] Nenhuma música para tocar');
+  const handleHomePlay = async () => {
+    if (!audioRef.current) {
+      console.log('[HOME] Player não inicializado');
       return;
     }
 
-    if (!hasSynced) {
-      // Primeira vez - sincroniza
-      console.log('[HOME] Primeira sincronização');
-      setHasSynced(true);
-      // O useEffect acima vai cuidar de carregar e tocar
-    } else {
-      // Já sincronizado - apenas toggle play/pause
-      if (audioRef.current.paused) {
-        audioRef.current.play().catch(e => console.error('[HOME] Erro ao tocar:', e));
-      } else {
-        audioRef.current.pause();
+    // Se não tem música, busca do Firebase primeiro
+    if (!localSong) {
+      console.log('[HOME] Buscando broadcast do Firebase...');
+      const state = await getBroadcastState();
+      
+      if (!state || !state.currentSong) {
+        alert('Nenhuma transmissão ativa no momento. Configure a Rádio Automática 24/7 no painel admin.');
+        return;
       }
+
+      // Atualiza estado local
+      setLocalSong(state.currentSong);
+      setLocalIsPlaying(state.isPlaying);
+      setHasSynced(true);
+
+      // Calcula tempo desde que começou
+      const timeSinceStart = (Date.now() - state.startedAt) / 1000;
+      
+      // Carrega e toca
+      audioRef.current.src = state.currentSong.url;
+      audioRef.current.onloadedmetadata = () => {
+        if (audioRef.current && timeSinceStart > 0 && timeSinceStart < audioRef.current.duration) {
+          audioRef.current.currentTime = timeSinceStart;
+        }
+        if (state.isPlaying) {
+          audioRef.current?.play().catch(e => console.error('[HOME] Erro ao tocar:', e));
+          setLocalIsPlaying(true);
+        }
+      };
+      audioRef.current.load();
+      return;
+    }
+
+    // Já tem música - apenas toggle play/pause
+    if (audioRef.current.paused) {
+      audioRef.current.play().catch(e => console.error('[HOME] Erro ao tocar:', e));
+      setLocalIsPlaying(true);
+    } else {
+      audioRef.current.pause();
+      setLocalIsPlaying(false);
     }
   };
 
