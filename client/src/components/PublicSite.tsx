@@ -1,8 +1,9 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Song, ThemeColor, RadioStationConfig, Playlist, Vote, InboxMessage } from '../types';
 import { PlayIcon, PauseIcon, MusicIcon, ClockIcon, PhoneIcon, MegaphoneIcon, CalendarIcon, LockIcon, StarIcon, CheckIcon, XMarkIcon, HeartIcon, MicIcon } from './Icons';
 import LoginModal from './LoginModal';
+import { subscribeToBroadcast, BroadcastState } from '../services/dbService';
 
 interface PublicSiteProps {
   currentSong: Song | null;
@@ -65,6 +66,91 @@ const PublicSite: React.FC<PublicSiteProps> = ({
   const [loveSuccess, setLoveSuccess] = useState(false);
 
   const isOnePage = config.publicTemplate === 'template2';
+
+  // Player independente da Home (sincroniza com Firebase)
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [localSong, setLocalSong] = useState<Song | null>(null);
+  const [localIsPlaying, setLocalIsPlaying] = useState(false);
+  const [hasSynced, setHasSynced] = useState(false);
+
+  // Criar elemento de áudio
+  useEffect(() => {
+    audioRef.current = new Audio();
+    audioRef.current.crossOrigin = 'anonymous';
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
+
+  // Subscribir ao broadcast do Firebase
+  useEffect(() => {
+    const unsubscribe = subscribeToBroadcast((state: BroadcastState | null) => {
+      if (!state || !state.currentSong) {
+        console.log('[HOME] Nenhum broadcast ativo');
+        setLocalSong(null);
+        setLocalIsPlaying(false);
+        return;
+      }
+
+      console.log('[HOME] Broadcast atualizado:', state.currentSong.title);
+      
+      // Atualiza a música exibida
+      setLocalSong(state.currentSong);
+      setLocalIsPlaying(state.isPlaying);
+
+      // Se o usuário já clicou play, sincroniza o áudio
+      if (hasSynced && audioRef.current) {
+        // Se mudou de música, carrega a nova
+        if (!localSong || localSong.id !== state.currentSong.id) {
+          const timeSinceStart = (Date.now() - state.startedAt) / 1000;
+          audioRef.current.src = state.currentSong.url;
+          audioRef.current.onloadedmetadata = () => {
+            if (audioRef.current && timeSinceStart > 0 && timeSinceStart < audioRef.current.duration) {
+              audioRef.current.currentTime = timeSinceStart;
+            }
+            if (state.isPlaying) {
+              audioRef.current?.play().catch(e => console.error('[HOME] Erro ao tocar:', e));
+            }
+          };
+          audioRef.current.load();
+        } else {
+          // Mesma música, só controla play/pause
+          if (state.isPlaying && audioRef.current.paused) {
+            audioRef.current.play().catch(e => console.error('[HOME] Erro ao tocar:', e));
+          } else if (!state.isPlaying && !audioRef.current.paused) {
+            audioRef.current.pause();
+          }
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, [hasSynced, localSong]);
+
+  // Função para o botão play da home
+  const handleHomePlay = () => {
+    if (!localSong || !audioRef.current) {
+      console.log('[HOME] Nenhuma música para tocar');
+      return;
+    }
+
+    if (!hasSynced) {
+      // Primeira vez - sincroniza
+      console.log('[HOME] Primeira sincronização');
+      setHasSynced(true);
+      // O useEffect acima vai cuidar de carregar e tocar
+    } else {
+      // Já sincronizado - apenas toggle play/pause
+      if (audioRef.current.paused) {
+        audioRef.current.play().catch(e => console.error('[HOME] Erro ao tocar:', e));
+      } else {
+        audioRef.current.pause();
+      }
+    }
+  };
 
   // Calculate Real Top 10
   const realTop10 = useMemo(() => {
@@ -440,30 +526,30 @@ const PublicSite: React.FC<PublicSiteProps> = ({
         
         {/* Status Badge */}
         <div className={`mb-8 inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-md text-sm font-medium ${colors.text}`}>
-            <span className={`w-2 h-2 rounded-full ${isPlaying ? 'bg-green-400 animate-pulse' : 'bg-red-400'}`}></span>
-            {isPlaying ? 'Transmitindo Agora' : 'Rádio Pausada'}
+            <span className={`w-2 h-2 rounded-full ${localIsPlaying ? 'bg-green-400 animate-pulse' : 'bg-red-400'}`}></span>
+            {localIsPlaying ? 'Ao Vivo' : 'Rádio Pausada'}
         </div>
 
         {/* Big Typography (Title) */}
         <h1 className="text-4xl md:text-7xl font-black mb-10 text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-400 drop-shadow-2xl text-center leading-tight px-4">
-            {currentSong ? currentSong.title : config.name.toUpperCase()}
+            {localSong ? localSong.title : config.name.toUpperCase()}
         </h1>
 
         {/* Center Player / CD */}
-        <div className="relative group cursor-pointer mb-8" onClick={onTogglePlay}>
+        <div className="relative group cursor-pointer mb-8" onClick={handleHomePlay}>
             {/* Glow Effect */}
-            <div className={`absolute -inset-4 bg-gradient-to-r ${colors.gradient} rounded-full blur-xl opacity-40 group-hover:opacity-70 transition duration-500 ${isPlaying ? 'animate-pulse' : ''}`}></div>
+            <div className={`absolute -inset-4 bg-gradient-to-r ${colors.gradient} rounded-full blur-xl opacity-40 group-hover:opacity-70 transition duration-500 ${localIsPlaying ? 'animate-pulse' : ''}`}></div>
             
             {/* The CD / Play Button */}
             <div className="relative w-40 h-40 md:w-56 md:h-56 bg-gray-900 rounded-full border-4 border-gray-700 flex items-center justify-center shadow-2xl overflow-hidden">
                 
                 {/* Spinning Art */}
-                <div className={`absolute inset-0 bg-[url('https://images.unsplash.com/photo-1493225255756-d9584f8606e9?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-center opacity-50 ${isPlaying ? 'animate-[spin_6s_linear_infinite]' : ''}`}></div>
+                <div className={`absolute inset-0 bg-[url('https://images.unsplash.com/photo-1493225255756-d9584f8606e9?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-center opacity-50 ${localIsPlaying ? 'animate-[spin_6s_linear_infinite]' : ''}`}></div>
                 
                 {/* Play Icon Overlay */}
                 <div className="absolute inset-0 flex items-center justify-center bg-black/30 backdrop-blur-[2px] group-hover:bg-black/10 transition">
                     <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center pl-2 shadow-lg transform group-hover:scale-110 transition-transform duration-300">
-                        {isPlaying ? (
+                        {localIsPlaying ? (
                             <PauseIcon className="w-8 h-8 text-black" />
                         ) : (
                             <PlayIcon className="w-8 h-8 text-black" />
@@ -475,7 +561,7 @@ const PublicSite: React.FC<PublicSiteProps> = ({
 
         {/* Subtitle (Artist / Default Slogan) - MOVED HERE and ENLARGED */}
         <p className="text-[4vw] md:text-4xl text-gray-200 font-light tracking-wide mb-8 text-center drop-shadow-md whitespace-nowrap w-full overflow-hidden text-ellipsis px-4 max-w-full">
-            {currentSong ? currentSong.artist : "A melhor música, 24 horas por dia."}
+            {localSong ? localSong.artist : "A melhor música, 24 horas por dia."}
         </p>
         
         {/* Radio Slogan / Short Desc */}

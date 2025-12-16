@@ -9,6 +9,7 @@
 - [x] Preview funcionando
 
 ## Próximas Tarefas
+- [x] SINCRONIZAÇÃO: Home deve replicar exatamente o que o admin está tocando (AutoDJ ou Ao Vivo)
 - [ ] Ajustes de design/cores (aguardando instruções do usuário)
 - [ ] Novas funcionalidades (aguardando instruções do usuário)
 - [ ] Publicação final

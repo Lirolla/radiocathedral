@@ -275,3 +275,44 @@ export const saveAutoDJSettings = async (autoDJ: AutoDJSettings) => {
         console.error("Erro ao salvar autoDJ:", error);
     }
 };
+
+// Broadcast State (para sincronização com ouvintes)
+export interface BroadcastState {
+  currentSong: Song | null;
+  isPlaying: boolean;
+  isAutoDJ: boolean;
+  startedAt: number; // timestamp quando a música começou
+  currentTime: number; // tempo atual da música em segundos
+  updatedAt: number; // timestamp da última atualização
+}
+
+export const saveBroadcastState = async (state: BroadcastState) => {
+  try {
+    await setDoc(doc(db, "broadcast", "current"), state);
+  } catch (error: any) {
+    console.error("Erro ao salvar broadcast:", error);
+  }
+};
+
+export const getBroadcastState = async (): Promise<BroadcastState | null> => {
+  try {
+    const docSnap = await getDoc(doc(db, "broadcast", "current"));
+    if (docSnap.exists()) {
+      return docSnap.data() as BroadcastState;
+    }
+    return null;
+  } catch (error: any) {
+    console.error("Erro ao buscar broadcast:", error);
+    return null;
+  }
+};
+
+export const subscribeToBroadcast = (callback: (state: BroadcastState | null) => void) => {
+  return onSnapshot(doc(db, "broadcast", "current"), (docSnap) => {
+    if (docSnap.exists()) {
+      callback(docSnap.data() as BroadcastState);
+    } else {
+      callback(null);
+    }
+  });
+};

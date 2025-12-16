@@ -37,7 +37,8 @@ import {
   saveVote,
   saveMessage, 
   toggleMessageRead, 
-  deleteMessage 
+  deleteMessage,
+  saveBroadcastState
 } from './services/dbService';
 
 // Importar serviço de R2
@@ -206,12 +207,24 @@ function App() {
               console.error("Autoplay prevented:", e);
               setIsPlaying(false);
           });
-      } 
-    } else if (!currentSong) {
-      setIsPlaying(false);
-      setProgress(0);
+      }
     }
   }, [currentSong]);
+
+  // Salvar estado do broadcast no Firebase (para sincronização com ouvintes)
+  useEffect(() => {
+    if (userRole === 'admin') {
+      const currentTime = audioRef.current?.currentTime || 0;
+      saveBroadcastState({
+        currentSong,
+        isPlaying,
+        isAutoDJ,
+        startedAt: Date.now() - (currentTime * 1000),
+        currentTime,
+        updatedAt: Date.now()
+      });
+    }
+  }, [currentSong, isPlaying, isAutoDJ, userRole]);
 
   useEffect(() => {
       if (audioRef.current) {
