@@ -19,3 +19,9 @@
 
 ## Bugs Reportados
 - [x] Corrigir layout quebrado - CSS não está sendo aplicado corretamente nos botões e elementos (CORRIGIDO - adicionado @import tailwindcss)
+
+## Próxima Tarefa
+- [x] Botão "Ativar Rádio Automática" no Admin: Calcula música do AutoDJ e salva no Firebase para tocar 24/7
+
+## Bugs Reportados
+- [ ] BUG: Botão play da home não funciona - precisa do admin aberto para ter broadcast ativo

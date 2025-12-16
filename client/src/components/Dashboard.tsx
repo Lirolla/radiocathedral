@@ -8,13 +8,19 @@ interface DashboardProps {
   nextSong: Song | null;
   isAutoDJ: boolean;
   onToggleAutoDJ: () => void;
+  isAutoRadioActive: boolean;
+  onActivateAutoRadio: () => void;
+  onDeactivateAutoRadio: () => void;
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ 
   currentSong, 
   nextSong, 
   isAutoDJ,
-  onToggleAutoDJ
+  onToggleAutoDJ,
+  isAutoRadioActive,
+  onActivateAutoRadio,
+  onDeactivateAutoRadio
 }) => {
   // Audiência Real (Firebase Realtime)
   const [listeners, setListeners] = useState(0);
@@ -138,6 +144,34 @@ const Dashboard: React.FC<DashboardProps> = ({
                  {isAutoDJ ? 'Tocando playlist automaticamente' : 'Clique para ativar a automação'}
               </span>
            </button>
+        </div>
+
+        {/* RÁDIO AUTOMÁTICA 24/7 */}
+        <div className={`border rounded-2xl p-6 flex flex-col items-center justify-center gap-4 transition-all duration-300 ${isAutoRadioActive ? 'bg-purple-900/10 border-purple-500/30' : 'bg-gray-900/30 border-gray-800'}`}>
+           <h3 className="text-lg font-bold text-gray-300 uppercase tracking-widest">Rádio Automática 24/7</h3>
+           <p className="text-xs text-gray-400 text-center">Transmite baseado na programação (Schedule) sem precisar deixar o navegador aberto</p>
+           
+           {isAutoRadioActive ? (
+             <button 
+               onClick={onDeactivateAutoRadio}
+               className="w-full py-6 rounded-xl font-black text-2xl tracking-wider transition-all shadow-xl transform active:scale-95 flex flex-col items-center gap-2 bg-red-600 text-white shadow-red-900/50 hover:bg-red-500"
+             >
+                <span>DESATIVAR</span>
+                <span className="text-xs font-normal opacity-70">
+                   Transmitindo 24/7
+                </span>
+             </button>
+           ) : (
+             <button 
+               onClick={onActivateAutoRadio}
+               className="w-full py-6 rounded-xl font-black text-2xl tracking-wider transition-all shadow-xl transform active:scale-95 flex flex-col items-center gap-2 bg-purple-600 text-white shadow-purple-900/50 hover:bg-purple-500"
+             >
+                <span>ATIVAR</span>
+                <span className="text-xs font-normal opacity-70">
+                   Iniciar transmissão automática
+                </span>
+             </button>
+           )}
         </div>
 
       </div>
