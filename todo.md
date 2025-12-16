@@ -38,3 +38,4 @@
 - [x] BUG: Home travada em música antiga do Firebase - não atualiza com o que o admin está tocando (CORRIGIDO - salvamento imediato + busca sempre do Firebase)
 - [x] LÓGICA CORRETA: Sincronizar UMA VEZ no play, depois seguir a lista em sequência sem re-sincronizar
 - [x] REVERTER: Desativar player novo da home, voltar ao comportamento original simples
+- [x] BUG: Botão play da home não funciona - não começa a tocar nada (CORRIGIDO - publicTogglePlay inicia AutoDJ se não tem música)

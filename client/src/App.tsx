@@ -280,6 +280,24 @@ function App() {
     setIsPlaying(!isPlaying);
   };
 
+  // Função para o botão play da home pública
+  const publicTogglePlay = () => {
+    if (isPlaying) {
+      // Se está tocando, pausa
+      setIsPlaying(false);
+    } else {
+      // Se não está tocando
+      if (currentSong) {
+        // Se já tem música, só dá play
+        setIsPlaying(true);
+      } else {
+        // Se não tem música, inicia o AutoDJ
+        console.log('[PUBLIC] Iniciando AutoDJ...');
+        checkAndEnforceSchedule(true);
+      }
+    }
+  };
+
   const handleTimeUpdate = () => {
     if (audioRef.current) {
       setProgress(audioRef.current.currentTime);
@@ -718,7 +736,7 @@ function App() {
              currentSong={currentSong} nextSong={nextSong} history={songHistory} isPlaying={isPlaying}
              onAdminLogin={handleAdminLogin}
              onLocutorLogin={handleLocutorLogin}
-             onTogglePlay={togglePlay} config={stationConfig}
+             onTogglePlay={publicTogglePlay} config={stationConfig}
              top10Playlist={top10Playlist} votes={votes} onVote={handleRegisterVote} onSendMessage={handleSendMessage}
         />
       ) : (
