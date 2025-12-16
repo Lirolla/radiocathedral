@@ -1,41 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { Song } from '../types';
 import { MusicIcon, UsersIcon } from './Icons';
-import { subscribeToListenersCount } from '../services/dbService';
 
 interface DashboardProps {
   currentSong: Song | null;
   nextSong: Song | null;
   isAutoDJ: boolean;
   onToggleAutoDJ: () => void;
-  isAutoRadioActive: boolean;
-  onActivateAutoRadio: () => void;
-  onDeactivateAutoRadio: () => void;
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ 
   currentSong, 
   nextSong, 
   isAutoDJ,
-  onToggleAutoDJ,
-  isAutoRadioActive,
-  onActivateAutoRadio,
-  onDeactivateAutoRadio
+  onToggleAutoDJ
 }) => {
-  // Audiência Real (Firebase Realtime)
+  // Audiência Real (Sem Simulação)
+  // Em um sistema real conectado ao backend, isso viria via WebSocket/API
   const [listeners, setListeners] = useState(0);
   const [peak, setPeak] = useState(0);
-
-  useEffect(() => {
-    const unsubscribe = subscribeToListenersCount((count) => {
-      setListeners(count);
-      if (count > peak) {
-        setPeak(count);
-      }
-    });
-
-    return () => unsubscribe();
-  }, [peak]);
 
   return (
     <div className="h-full flex flex-col gap-6 p-6 overflow-y-auto">
@@ -106,13 +89,10 @@ const Dashboard: React.FC<DashboardProps> = ({
                  <span className="text-gray-400 font-medium mb-2">ouvintes</span>
              </div>
 
-             {/* Graph Placeholder */}
-             <div className="h-16 flex items-end justify-between gap-1 mb-4 border-b border-gray-700">
-                 {listeners > 0 ? (
-                   <div className="w-full text-center text-xs text-green-500 py-4">✓ Sincronizado com Firebase</div>
-                 ) : (
-                   <div className="w-full text-center text-xs text-gray-600 py-4">Aguardando ouvintes...</div>
-                 )}
+             {/* Graph Placeholder (Flat because 0 listeners) */}
+             <div className="h-16 flex items-end justify-between gap-1 mb-4 opacity-50 border-b border-gray-700">
+                 {/* Sem dados de audiência */}
+                 <div className="w-full text-center text-xs text-gray-600 py-4">Aguardando dados do servidor de streaming...</div>
              </div>
 
              <div className="grid grid-cols-2 gap-4 text-xs text-gray-400 border-t border-gray-800 pt-4">
@@ -144,34 +124,6 @@ const Dashboard: React.FC<DashboardProps> = ({
                  {isAutoDJ ? 'Tocando playlist automaticamente' : 'Clique para ativar a automação'}
               </span>
            </button>
-        </div>
-
-        {/* RÁDIO AUTOMÁTICA 24/7 */}
-        <div className={`border rounded-2xl p-6 flex flex-col items-center justify-center gap-4 transition-all duration-300 ${isAutoRadioActive ? 'bg-purple-900/10 border-purple-500/30' : 'bg-gray-900/30 border-gray-800'}`}>
-           <h3 className="text-lg font-bold text-gray-300 uppercase tracking-widest">Rádio Automática 24/7</h3>
-           <p className="text-xs text-gray-400 text-center">Transmite baseado na programação (Schedule) sem precisar deixar o navegador aberto</p>
-           
-           {isAutoRadioActive ? (
-             <button 
-               onClick={onDeactivateAutoRadio}
-               className="w-full py-6 rounded-xl font-black text-2xl tracking-wider transition-all shadow-xl transform active:scale-95 flex flex-col items-center gap-2 bg-red-600 text-white shadow-red-900/50 hover:bg-red-500"
-             >
-                <span>DESATIVAR</span>
-                <span className="text-xs font-normal opacity-70">
-                   Transmitindo 24/7
-                </span>
-             </button>
-           ) : (
-             <button 
-               onClick={onActivateAutoRadio}
-               className="w-full py-6 rounded-xl font-black text-2xl tracking-wider transition-all shadow-xl transform active:scale-95 flex flex-col items-center gap-2 bg-purple-600 text-white shadow-purple-900/50 hover:bg-purple-500"
-             >
-                <span>ATIVAR</span>
-                <span className="text-xs font-normal opacity-70">
-                   Iniciar transmissão automática
-                </span>
-             </button>
-           )}
         </div>
 
       </div>

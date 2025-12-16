@@ -37,8 +37,7 @@ import {
   saveVote,
   saveMessage, 
   toggleMessageRead, 
-  deleteMessage,
-  saveBroadcastState
+  deleteMessage 
 } from './services/dbService';
 
 // Importar serviço de R2
@@ -207,24 +206,12 @@ function App() {
               console.error("Autoplay prevented:", e);
               setIsPlaying(false);
           });
-      }
+      } 
+    } else if (!currentSong) {
+      setIsPlaying(false);
+      setProgress(0);
     }
   }, [currentSong]);
-
-  // Salvar estado do broadcast no Firebase (para sincronização com ouvintes)
-  useEffect(() => {
-    if (userRole === 'admin') {
-      const currentTime = audioRef.current?.currentTime || 0;
-      saveBroadcastState({
-        currentSong,
-        isPlaying,
-        isAutoDJ,
-        startedAt: Date.now() - (currentTime * 1000),
-        currentTime,
-        updatedAt: Date.now()
-      });
-    }
-  }, [currentSong, isPlaying, isAutoDJ, userRole]);
 
   useEffect(() => {
       if (audioRef.current) {
@@ -289,130 +276,6 @@ function App() {
   };
   const handleSendMessage = async (msg: Omit<InboxMessage, 'id' | 'timestamp' | 'read'>) => {
       await saveMessage({ ...msg, timestamp: new Date().toISOString(), read: false });
-  };
-
-  // --- RÁDIO AUTOMÁTICA 24/7 ---
-  const [isAutoRadioActive, setIsAutoRadioActive] = useState(false);
-  const autoRadioIntervalRef = useRef<NodeJS.Timeout | null>(null);
-
-  const calculateAutoDJSong = () => {
-    // 1. Verificar que horas são agora
-    const now = new Date();
-    const currentDay = now.getDay(); // 0 = Domingo, 1 = Segunda, etc.
-    const currentTime = now.getHours() * 60 + now.getMinutes(); // Minutos desde meia-noite
-
-    // 2. Buscar programa ativo no Schedule
-    const activeProgram = schedule.find(item => {
-      if (!item.isActive || !item.days.includes(currentDay)) return false;
-      
-      const [startHour, startMin] = item.time.split(':').map(Number);
-      const programStart = startHour * 60 + startMin;
-      
-      // Assumir duração de 1 hora (pode ajustar depois)
-      const programEnd = programStart + 60;
-      
-      return currentTime >= programStart && currentTime < programEnd;
-    });
-
-    let targetPlaylist: Playlist | undefined;
-
-    if (activeProgram) {
-      // Usar playlist do programa agendado
-      targetPlaylist = playlists.find(p => p.id === activeProgram.playlistId);
-      console.log('[AUTO_RADIO] Programa ativo:', activeProgram.playlistId);
-    } else {
-      // Sem programa agendado - usar primeira playlist de música
-      targetPlaylist = playlists.find(p => p.type === 'music');
-      console.log('[AUTO_RADIO] Sem programa agendado, usando playlist padrão');
-    }
-
-    if (!targetPlaylist || targetPlaylist.songs.length === 0) {
-      console.log('[AUTO_RADIO] Nenhuma playlist disponível');
-      return null;
-    }
-
-    // Juntar todas as músicas da playlist
-    const allSongs: Song[] = [...targetPlaylist.songs];
-
-    if (allSongs.length === 0) {
-      console.log('[AUTO_RADIO] Nenhuma música nas playlists');
-      return null;
-    }
-
-    // Calcular tempo total
-    const totalDuration = allSongs.reduce((sum, song) => sum + song.duration, 0);
-    
-    // Tempo desde meia-noite (reutilizar 'now' já definido acima)
-    const nowTimestamp = now.getTime();
-    const midnight = new Date();
-    midnight.setHours(0, 0, 0, 0);
-    const timeSinceMidnight = (nowTimestamp - midnight.getTime()) / 1000;
-
-    // Posição atual no loop
-    const positionInLoop = timeSinceMidnight % totalDuration;
-
-    // Encontrar música atual
-    let accumulatedTime = 0;
-    let currentSongIndex = 0;
-    let currentTimeInSong = 0;
-
-    for (let i = 0; i < allSongs.length; i++) {
-      const song = allSongs[i];
-      if (accumulatedTime + song.duration > positionInLoop) {
-        currentSongIndex = i;
-        currentTimeInSong = positionInLoop - accumulatedTime;
-        break;
-      }
-      accumulatedTime += song.duration;
-    }
-
-    const currentSong = allSongs[currentSongIndex];
-    const startedAt = nowTimestamp - (currentTimeInSong * 1000);
-
-    return {
-      currentSong,
-      currentTime: currentTimeInSong,
-      startedAt,
-      isPlaying: true,
-      isAutoDJ: true,
-      updatedAt: nowTimestamp
-    };
-  };
-
-  const activateAutoRadio = () => {
-    const state = calculateAutoDJSong();
-    if (!state) {
-      alert('Configure as playlists do AutoDJ primeiro!');
-      return;
-    }
-
-    // Salvar no Firebase
-    saveBroadcastState(state);
-    setIsAutoRadioActive(true);
-
-    // Atualizar a cada minuto
-    if (autoRadioIntervalRef.current) {
-      clearInterval(autoRadioIntervalRef.current);
-    }
-
-    autoRadioIntervalRef.current = setInterval(() => {
-      const newState = calculateAutoDJSong();
-      if (newState) {
-        saveBroadcastState(newState);
-        console.log('[AUTO_RADIO] Atualizado:', newState.currentSong.title);
-      }
-    }, 60000); // A cada 1 minuto
-
-    alert('Rádio Automática Ativada! Tocando 24/7.');
-  };
-
-  const deactivateAutoRadio = () => {
-    if (autoRadioIntervalRef.current) {
-      clearInterval(autoRadioIntervalRef.current);
-      autoRadioIntervalRef.current = null;
-    }
-    setIsAutoRadioActive(false);
-    alert('Rádio Automática Desativada.');
   };
 
   // --- MIXER LOGIC ---
@@ -695,7 +558,7 @@ function App() {
             onPlaySpecificSong={handlePlaySpecificSong}
         />;
         case 'settings': return <SettingsManager config={stationConfig} onUpdateConfig={handleUpdateConfig} onExportBackup={handleExportBackup} onImportBackup={handleImportBackup} />;
-        case 'dashboard': default: return <Dashboard currentSong={currentSong} nextSong={nextSong} isAutoDJ={isAutoDJ} onToggleAutoDJ={handleToggleAutoDJ} isAutoRadioActive={isAutoRadioActive} onActivateAutoRadio={activateAutoRadio} onDeactivateAutoRadio={deactivateAutoRadio} />;
+        case 'dashboard': default: return <Dashboard currentSong={currentSong} nextSong={nextSong} isAutoDJ={isAutoDJ} onToggleAutoDJ={handleToggleAutoDJ} />;
     }
   };
 
