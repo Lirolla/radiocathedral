@@ -170,9 +170,9 @@ const PublicSite: React.FC<PublicSiteProps> = ({
 
       console.log('[HOME] Broadcast atualizado:', state.currentSong.title);
       
-      // Atualiza a música exibida
+      // Atualiza a música exibida (mas NÃO o estado de playing)
       setLocalSong(state.currentSong);
-      setLocalIsPlaying(state.isPlaying);
+      // NÃO atualiza localIsPlaying aqui - só quando o usuário clicar play
 
       // Se o usuário já clicou play, sincroniza o áudio
       if (hasSynced && audioRef.current) {
@@ -230,13 +230,20 @@ const PublicSite: React.FC<PublicSiteProps> = ({
       
       // Carrega e toca
       audioRef.current.src = state.currentSong.url;
-      audioRef.current.onloadedmetadata = () => {
+      audioRef.current.onloadedmetadata = async () => {
         if (audioRef.current && timeSinceStart > 0 && timeSinceStart < audioRef.current.duration) {
           audioRef.current.currentTime = timeSinceStart;
         }
         if (state.isPlaying) {
-          audioRef.current?.play().catch(e => console.error('[HOME] Erro ao tocar:', e));
-          setLocalIsPlaying(true);
+          try {
+            await audioRef.current?.play();
+            setLocalIsPlaying(true);
+            console.log('[HOME] Áudio tocando');
+          } catch (e) {
+            console.error('[HOME] Erro ao tocar:', e);
+            alert('Não foi possível reproduzir o áudio. Clique no botão play novamente.');
+            setLocalIsPlaying(false);
+          }
         }
       };
       audioRef.current.load();
@@ -245,8 +252,15 @@ const PublicSite: React.FC<PublicSiteProps> = ({
 
     // Já tem música - apenas toggle play/pause
     if (audioRef.current.paused) {
-      audioRef.current.play().catch(e => console.error('[HOME] Erro ao tocar:', e));
-      setLocalIsPlaying(true);
+      try {
+        await audioRef.current.play();
+        setLocalIsPlaying(true);
+        console.log('[HOME] Áudio tocando');
+      } catch (e) {
+        console.error('[HOME] Erro ao tocar:', e);
+        alert('Não foi possível reproduzir o áudio.');
+        setLocalIsPlaying(false);
+      }
     } else {
       audioRef.current.pause();
       setLocalIsPlaying(false);

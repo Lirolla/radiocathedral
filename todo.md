@@ -26,3 +26,4 @@
 ## Bugs Reportados
 - [ ] BUG: Botão play da home não funciona - precisa do admin aberto para ter broadcast ativo
 - [x] BUG: Botão play da home não toca quando rádio automática está ativada - muda título mas não reproduz áudio (CORRIGIDO - botão agora busca do Firebase quando não tem música)
+- [x] BUG: Botão play da home mostra como ativado (pause icon) mas não reproduz áudio - só mostra o texto (CORRIGIDO - await no play() e tratamento de erro)
