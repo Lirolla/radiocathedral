@@ -37,7 +37,10 @@ import {
   saveVote,
   saveMessage, 
   toggleMessageRead, 
-  deleteMessage 
+  deleteMessage,
+  saveBroadcastState,
+  subscribeToBroadcast,
+  BroadcastState
 } from './services/dbService';
 
 // Importar serviço de R2
@@ -83,6 +86,11 @@ function App() {
       commercialInterval: 6, enableCommercials: true,
       timeAnnouncementInterval: 5, enableTimeAnnouncement: true
   });
+
+  // --- BROADCAST SYNC STATE (Sincronização de Rádio ao Vivo) ---
+  const [broadcastState, setBroadcastState] = useState<BroadcastState | null>(null);
+  const [isBroadcastMaster, setIsBroadcastMaster] = useState(false); // Admin/AutoDJ controla o broadcast
+  const lastBroadcastUpdate = useRef<number>(0);
 
   // --- AUTHENTICATION & FIREBASE SUBSCRIPTIONS ---
   useEffect(() => {
@@ -137,6 +145,11 @@ function App() {
             (remoteConfig) => setStationConfig(prev => ({ ...prev, ...remoteConfig })),
             (remoteAutoDJ) => setAutoDJSettings(prev => ({ ...prev, ...remoteAutoDJ }))
         );
+        
+        // Subscribe to broadcast state for live sync
+        const unsubBroadcast = subscribeToBroadcast((state) => {
+            setBroadcastState(state);
+        });
 
         return () => {
             unsubPlaylists();
@@ -145,6 +158,7 @@ function App() {
             unsubVotes();
             unsubMessages();
             unsubSettings();
+            unsubBroadcast();
         };
     };
     initApp();
@@ -194,6 +208,34 @@ function App() {
 
   const currentSong = currentSongIndex >= 0 && currentSongIndex < playerQueue.length ? playerQueue[currentSongIndex] : null;
   const nextSong = currentSongIndex >= 0 && currentSongIndex < playerQueue.length - 1 ? playerQueue[currentSongIndex + 1] : (isAutoDJ && playerQueue.length > 0 ? playerQueue[0] : null);
+
+  // --- BROADCAST SYNC: Sincronização para ouvintes públicos ---
+  useEffect(() => {
+    // Só sincroniza se NÃO for o master (admin) e se tiver um broadcast ativo
+    if (isBroadcastMaster || !broadcastState || !broadcastState.currentSong) return;
+    
+    // Verifica se a música mudou
+    const currentBroadcastSong = broadcastState.currentSong;
+    if (!currentSong || currentSong.id !== currentBroadcastSong.id || currentSong.url !== currentBroadcastSong.url) {
+      console.log('[Sync] Sincronizando com broadcast:', currentBroadcastSong.title);
+      
+      // Atualiza a fila e índice
+      setPlayerQueue(broadcastState.queue);
+      setCurrentSongIndex(broadcastState.currentIndex);
+      
+      // Calcula o tempo correto baseado em quando a música começou
+      if (audioRef.current && currentBroadcastSong.url) {
+        const timeSinceStart = (Date.now() - broadcastState.startedAt) / 1000;
+        audioRef.current.src = currentBroadcastSong.url;
+        audioRef.current.load();
+        audioRef.current.currentTime = Math.max(0, timeSinceStart);
+        if (broadcastState.isPlaying) {
+          audioRef.current.play().catch(e => console.error('Autoplay blocked:', e));
+          setIsPlaying(true);
+        }
+      }
+    }
+  }, [broadcastState, isBroadcastMaster]);
 
   // --- AUDIO LOGIC ---
   useEffect(() => {
@@ -294,6 +336,19 @@ function App() {
     setIsAutoDJ(true);
     setSongsPlayed(0);
     setIsPlaying(true); // FORCE START
+    
+    // Broadcast sync: salvar estado para todos os ouvintes
+    if (isBroadcastMaster && shuffledSongs.length > 0) {
+      saveBroadcastState({
+        currentSong: shuffledSongs[0],
+        queue: shuffledSongs,
+        currentIndex: 0,
+        isPlaying: true,
+        startedAt: Date.now(),
+        currentTime: 0,
+        updatedAt: Date.now()
+      });
+    }
   };
 
   // --- SCHEDULER & AUTODJ ENGINE ---
@@ -403,7 +458,23 @@ function App() {
             if (insertionOffset > 0) setPlayerQueue(newQueue);
         }
         setCurrentSongIndex(nextIndex);
-        setIsPlaying(true); 
+        setIsPlaying(true);
+        
+        // Broadcast sync: atualizar estado quando muda de música
+        if (isBroadcastMaster) {
+          const nextSongToPlay = playerQueue[nextIndex];
+          if (nextSongToPlay) {
+            saveBroadcastState({
+              currentSong: nextSongToPlay,
+              queue: playerQueue,
+              currentIndex: nextIndex,
+              isPlaying: true,
+              startedAt: Date.now(),
+              currentTime: 0,
+              updatedAt: Date.now()
+            });
+          }
+        }
     } else {
         setIsPlaying(false);
     }
@@ -515,6 +586,7 @@ function App() {
   const handleAdminLogin = () => {
       setUserRole('admin');
       setCurrentView('dashboard');
+      setIsBroadcastMaster(true); // Admin controla o broadcast
   };
 
   const handleLocutorLogin = (accessKey: string) => {
@@ -534,6 +606,7 @@ function App() {
       setUserRole('public');
       setCurrentView('public_site');
       setCurrentUser(null);
+      setIsBroadcastMaster(false); // Desativa controle do broadcast
   };
 
   const renderContent = () => {

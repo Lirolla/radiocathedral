@@ -275,3 +275,55 @@ export const saveAutoDJSettings = async (autoDJ: AutoDJSettings) => {
         console.error("Erro ao salvar autoDJ:", error);
     }
 };
+
+
+// --- BROADCAST SYNC (Sincronização de Rádio ao Vivo) ---
+
+export interface BroadcastState {
+  currentSong: Song | null;
+  queue: Song[];
+  currentIndex: number;
+  isPlaying: boolean;
+  startedAt: number; // Timestamp (ms) de quando a música atual começou
+  currentTime: number; // Tempo atual da música em segundos (quando foi atualizado)
+  updatedAt: number; // Timestamp (ms) da última atualização
+}
+
+// Salvar estado do broadcast (chamado pelo admin/AutoDJ)
+export const saveBroadcastState = async (state: BroadcastState) => {
+  try {
+    await setDoc(doc(db, COLLECTIONS.SETTINGS, "broadcast"), {
+      ...state,
+      updatedAt: Date.now()
+    });
+  } catch (error: any) {
+    console.error("Erro ao salvar estado do broadcast:", error);
+  }
+};
+
+// Atualizar apenas o tempo atual (para sincronização mais precisa)
+export const updateBroadcastTime = async (currentTime: number, isPlaying: boolean) => {
+  try {
+    await updateDoc(doc(db, COLLECTIONS.SETTINGS, "broadcast"), {
+      currentTime,
+      isPlaying,
+      updatedAt: Date.now()
+    });
+  } catch (error: any) {
+    console.error("Erro ao atualizar tempo do broadcast:", error);
+  }
+};
+
+// Listener para estado do broadcast (usado pelos ouvintes)
+export const subscribeToBroadcast = (callback: (state: BroadcastState | null) => void) => {
+  return onSnapshot(doc(db, COLLECTIONS.SETTINGS, "broadcast"), (docSnap) => {
+    if (docSnap.exists()) {
+      callback(docSnap.data() as BroadcastState);
+    } else {
+      callback(null);
+    }
+  }, (error) => {
+    console.error("Erro ao ouvir broadcast:", error);
+    callback(null);
+  });
+};
