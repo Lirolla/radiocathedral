@@ -212,12 +212,15 @@ function App() {
 
   // --- BROADCAST SYNC: Só atualiza quando NÃO está tocando ---
   useEffect(() => {
+    // Só sincroniza para ouvintes públicos
+    // Admin/locutores controlam o broadcast, não precisam sincronizar
+    if (userRole !== 'public') return;
+    
     // Se não tiver broadcast ativo, não faz nada
     if (!broadcastState || !broadcastState.currentSong) return;
     
     // SE ESTÁ TOCANDO, NÃO ATUALIZA - deixa a música atual terminar!
     if (isPlaying) {
-      console.log('[Sync] Ignorando atualização - música tocando');
       return;
     }
     
@@ -229,13 +232,13 @@ function App() {
                       currentSong.url !== currentBroadcastSong.url;
     
     if (needsSync) {
-      console.log('[Sync] Atualizando música exibida (pausado):', currentBroadcastSong.title);
+      console.log('[Sync] Ouvinte: Atualizando música exibida:', currentBroadcastSong.title);
       
       // Atualiza a fila e índice (para mostrar a música correta)
       setPlayerQueue(broadcastState.queue);
       setCurrentSongIndex(broadcastState.currentIndex);
     }
-  }, [broadcastState, isPlaying]);
+  }, [broadcastState, isPlaying, userRole]);
 
   // --- AUDIO LOGIC ---
   // NÃO muda automaticamente quando broadcast atualiza
@@ -287,8 +290,38 @@ function App() {
     }
   };
 
-  const handleEnded = () => {
-    setTimeout(() => { playNext(); }, 1000);
+  const handleEnded = async () => {
+    // Se for admin/master, avança normalmente (ele controla o broadcast)
+    if (isBroadcastMaster || userRole === 'admin') {
+      setTimeout(() => { playNext(); }, 1000);
+      return;
+    }
+    
+    // Para ouvintes: busca o estado atual do Firebase
+    console.log('[Sync] Música terminou - buscando estado do broadcast...');
+    const liveState = await getBroadcastState();
+    if (liveState && liveState.currentSong) {
+      setPlayerQueue(liveState.queue);
+      setCurrentSongIndex(liveState.currentIndex);
+      
+      // Calcula o tempo correto
+      const timeSinceStart = (Date.now() - liveState.startedAt) / 1000;
+      if (audioRef.current) {
+        audioRef.current.src = liveState.currentSong.url;
+        audioRef.current.load();
+        audioRef.current.onloadedmetadata = () => {
+          if (audioRef.current) {
+            // Só pula para o tempo se não exceder a duração
+            const duration = audioRef.current.duration || 0;
+            if (timeSinceStart < duration) {
+              audioRef.current.currentTime = timeSinceStart;
+            }
+            audioRef.current.play().catch(console.error);
+          }
+        };
+      }
+      console.log('[Sync] Sincronizado com broadcast:', liveState.currentSong.title);
+    }
   };
 
   // --- DB WRAPPERS ---
@@ -409,10 +442,11 @@ function App() {
   };
 
   useEffect(() => {
-    if (!isAutoDJ) return;
+    // AutoDJ só roda para admin/master - ouvintes não controlam a playlist
+    if (!isAutoDJ || userRole === 'public') return;
     const timer = setInterval(() => checkAndEnforceSchedule(false), 10000);
     return () => clearInterval(timer);
-  }, [isAutoDJ, schedule, playlists, currentScheduleId, playerQueue]);
+  }, [isAutoDJ, schedule, playlists, currentScheduleId, playerQueue, userRole]);
 
   const handleToggleAutoDJ = () => {
       const newState = !isAutoDJ;
@@ -495,11 +529,13 @@ function App() {
   };
 
   useEffect(() => {
-      // Só inicia AutoDJ se NÃO tiver um broadcast ativo (para não sobrescrever)
+      // Só inicia AutoDJ se for admin/master E NÃO tiver um broadcast ativo
+      // Ouvintes públicos NÃO devem iniciar o AutoDJ - eles só leem do Firebase
+      if (userRole === 'public') return;
       if (isAutoDJ && playlists.length > 0 && playerQueue.length === 0 && !broadcastState?.currentSong) {
           checkAndEnforceSchedule(false);
       }
-  }, [playlists, broadcastState]);
+  }, [playlists, broadcastState, userRole]);
 
   const handleAddToStudioQueue = (song: Song) => { setStudioQueue(prev => [...prev, song]); };
   const handleRemoveFromStudioQueue = (id: string) => { setStudioQueue(prev => prev.filter(s => s.id !== id)); };
