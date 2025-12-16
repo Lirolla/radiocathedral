@@ -123,34 +123,38 @@ const PublicSite: React.FC<PublicSiteProps> = ({
   // Função para sincronizar com o broadcast
   const syncWithBroadcast = async () => {
     try {
-      const state = broadcastState || await getBroadcastState();
+      // SEMPRE busca do Firebase, não usa cache
+      const state = await getBroadcastState();
+      console.log('[HOME] Estado do Firebase:', state);
+      
       if (!state || !state.currentSong || !audioRef.current) {
         console.log('[HOME] Nenhum broadcast ativo');
         setConnectionStatus('disconnected');
         return;
       }
 
+      setBroadcastState(state); // Atualiza o cache local
       setLocalCurrentSong(state.currentSong);
       const timeSinceStart = (Date.now() - state.startedAt) / 1000;
+      console.log(`[HOME] Tempo desde início: ${timeSinceStart.toFixed(1)}s`);
       
-      // Só muda se for música diferente
-      const currentSrc = audioRef.current.src || '';
-      const newFileName = state.currentSong.url.split('/').pop() || '';
-      
-      if (!currentSrc.includes(newFileName)) {
-        console.log(`[HOME] Carregando: ${state.currentSong.title}`);
-        audioRef.current.src = state.currentSong.url;
-        audioRef.current.load();
-      }
+      // Sempre carrega a música do Firebase
+      console.log(`[HOME] Carregando: ${state.currentSong.title} (${state.currentSong.url})`);
+      audioRef.current.src = state.currentSong.url;
       
       audioRef.current.onloadedmetadata = () => {
         if (!audioRef.current) return;
         const duration = audioRef.current.duration || 0;
         
-        // Pula para o tempo correto
+        // Pula para o tempo correto (se não passou da duração)
         if (timeSinceStart > 0 && timeSinceStart < duration) {
           audioRef.current.currentTime = timeSinceStart;
-          console.log(`[HOME] Pulando para ${timeSinceStart.toFixed(1)}s`);
+          console.log(`[HOME] Pulando para ${timeSinceStart.toFixed(1)}s de ${duration.toFixed(1)}s`);
+        } else if (timeSinceStart >= duration) {
+          // Música já terminou, busca novamente
+          console.log('[HOME] Música já terminou, buscando próxima...');
+          setTimeout(() => syncWithBroadcast(), 2000);
+          return;
         }
         
         audioRef.current.play().then(() => {
@@ -162,6 +166,8 @@ const PublicSite: React.FC<PublicSiteProps> = ({
           setConnectionStatus('disconnected');
         });
       };
+      
+      audioRef.current.load();
     } catch (error) {
       console.error('[HOME] Erro ao sincronizar:', error);
       setConnectionStatus('connecting');

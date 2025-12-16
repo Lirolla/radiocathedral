@@ -232,9 +232,27 @@ function App() {
     }
   }, [isPlaying]);
 
-  // BROADCAST: Salva estado no Firebase a cada 10 segundos (para ouvintes da home)
+  // BROADCAST: Salva estado no Firebase IMEDIATAMENTE quando muda de música
   useEffect(() => {
-    if (!isBroadcastMaster) return; // Só admin salva
+    if (!isBroadcastMaster || !currentSong) return;
+    
+    // Salva imediatamente quando muda de música
+    const now = Date.now();
+    saveBroadcastState({
+      currentSong: currentSong,
+      queue: playerQueue,
+      currentIndex: currentSongIndex,
+      isPlaying: isPlaying,
+      startedAt: now,
+      currentTime: 0,
+      updatedAt: now
+    });
+    console.log(`[BROADCAST] Nova música: ${currentSong.title}`);
+  }, [isBroadcastMaster, currentSong?.id]); // Só quando muda a música
+
+  // BROADCAST: Atualiza o tempo a cada 15 segundos
+  useEffect(() => {
+    if (!isBroadcastMaster) return;
     
     const saveInterval = setInterval(() => {
       if (!audioRef.current || audioRef.current.paused || !currentSong) return;
@@ -251,11 +269,11 @@ function App() {
         currentTime: currentTime,
         updatedAt: now
       });
-      console.log(`[BROADCAST] Salvando: ${currentSong.title} @ ${currentTime.toFixed(1)}s`);
-    }, 10000);
+      console.log(`[BROADCAST] Atualizando: ${currentSong.title} @ ${currentTime.toFixed(1)}s`);
+    }, 15000);
     
     return () => clearInterval(saveInterval);
-  }, [isBroadcastMaster, currentSong, playerQueue, currentSongIndex]);
+  }, [isBroadcastMaster]);
 
   const togglePlay = () => { 
     if (!currentSong) return;
