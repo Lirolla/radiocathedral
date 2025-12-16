@@ -74,30 +74,16 @@ const PublicSite: React.FC<PublicSiteProps> = ({
   const [localIsPlaying, setLocalIsPlaying] = useState(false);
   const [localCurrentSong, setLocalCurrentSong] = useState<Song | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
-  const [broadcastState, setBroadcastState] = useState<BroadcastState | null>(null);
+  
+  // Lista local que veio do Firebase - só atualiza no primeiro play
+  const [localQueue, setLocalQueue] = useState<Song[]>([]);
+  const [localIndex, setLocalIndex] = useState(0);
   const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const syncIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Criar elemento de áudio uma vez
   useEffect(() => {
     audioRef.current = new Audio();
     audioRef.current.preload = 'auto';
-    
-    // Eventos do áudio
-    audioRef.current.onended = () => {
-      console.log('[HOME] Música terminou, re-sincronizando...');
-      syncWithBroadcast();
-    };
-    
-    audioRef.current.onerror = () => {
-      console.log('[HOME] Erro no áudio, tentando reconectar...');
-      setConnectionStatus('connecting');
-      scheduleRetry();
-    };
-
-    audioRef.current.onplaying = () => {
-      setConnectionStatus('connected');
-    };
     
     return () => {
       if (audioRef.current) {
@@ -105,25 +91,54 @@ const PublicSite: React.FC<PublicSiteProps> = ({
         audioRef.current = null;
       }
       if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
-      if (syncIntervalRef.current) clearInterval(syncIntervalRef.current);
     };
   }, []);
 
-  // Subscribir ao broadcast do Firebase
+  // Quando música termina, avança para próxima da lista LOCAL (não busca do Firebase)
   useEffect(() => {
-    const unsubscribe = subscribeToBroadcast((state) => {
-      setBroadcastState(state);
-      if (state?.currentSong) {
-        setLocalCurrentSong(state.currentSong);
-      }
-    });
-    return () => unsubscribe();
-  }, []);
+    if (!audioRef.current) return;
+    
+    audioRef.current.onended = () => {
+      console.log('[HOME] Música terminou, avançando na lista local...');
+      playNextInQueue();
+    };
+    
+    audioRef.current.onerror = () => {
+      console.log('[HOME] Erro no áudio, tentando próxima...');
+      playNextInQueue();
+    };
 
-  // Função para sincronizar com o broadcast
+    audioRef.current.onplaying = () => {
+      setConnectionStatus('connected');
+    };
+  }, [localQueue, localIndex]);
+
+  // Função para tocar próxima música da lista LOCAL
+  const playNextInQueue = () => {
+    if (localQueue.length === 0) {
+      console.log('[HOME] Lista vazia');
+      return;
+    }
+    
+    const nextIndex = (localIndex + 1) % localQueue.length; // Loop na lista
+    console.log(`[HOME] Avançando para ${nextIndex + 1}/${localQueue.length}`);
+    setLocalIndex(nextIndex);
+    
+    const nextSong = localQueue[nextIndex];
+    if (nextSong && audioRef.current) {
+      setLocalCurrentSong(nextSong);
+      audioRef.current.src = nextSong.url;
+      audioRef.current.load();
+      audioRef.current.play().then(() => {
+        setupMediaSession(nextSong);
+      }).catch(e => console.error('[HOME] Erro ao tocar:', e));
+    }
+  };
+
+  // Função para sincronizar com o broadcast - SÓ CHAMADA NO PRIMEIRO PLAY
   const syncWithBroadcast = async () => {
     try {
-      // SEMPRE busca do Firebase, não usa cache
+      setConnectionStatus('connecting');
       const state = await getBroadcastState();
       console.log('[HOME] Estado do Firebase:', state);
       
@@ -133,34 +148,31 @@ const PublicSite: React.FC<PublicSiteProps> = ({
         return;
       }
 
-      setBroadcastState(state); // Atualiza o cache local
+      // Salva a lista e o índice LOCALMENTE
+      setLocalQueue(state.queue || [state.currentSong]);
+      setLocalIndex(state.currentIndex || 0);
       setLocalCurrentSong(state.currentSong);
-      const timeSinceStart = (Date.now() - state.startedAt) / 1000;
-      console.log(`[HOME] Tempo desde início: ${timeSinceStart.toFixed(1)}s`);
       
-      // Sempre carrega a música do Firebase
-      console.log(`[HOME] Carregando: ${state.currentSong.title} (${state.currentSong.url})`);
+      const timeSinceStart = (Date.now() - state.startedAt) / 1000;
+      console.log(`[HOME] Carregando: ${state.currentSong.title}`);
+      console.log(`[HOME] Lista com ${state.queue?.length || 1} músicas, índice ${state.currentIndex}`);
+      
       audioRef.current.src = state.currentSong.url;
       
       audioRef.current.onloadedmetadata = () => {
         if (!audioRef.current) return;
         const duration = audioRef.current.duration || 0;
         
-        // Pula para o tempo correto (se não passou da duração)
+        // Pula para o tempo correto
         if (timeSinceStart > 0 && timeSinceStart < duration) {
           audioRef.current.currentTime = timeSinceStart;
-          console.log(`[HOME] Pulando para ${timeSinceStart.toFixed(1)}s de ${duration.toFixed(1)}s`);
-        } else if (timeSinceStart >= duration) {
-          // Música já terminou, busca novamente
-          console.log('[HOME] Música já terminou, buscando próxima...');
-          setTimeout(() => syncWithBroadcast(), 2000);
-          return;
+          console.log(`[HOME] Pulando para ${timeSinceStart.toFixed(1)}s`);
         }
         
         audioRef.current.play().then(() => {
           setLocalIsPlaying(true);
           setConnectionStatus('connected');
-          if (state.currentSong) setupMediaSession(state.currentSong);
+          setupMediaSession(state.currentSong!);
         }).catch(e => {
           console.error('[HOME] Autoplay bloqueado:', e);
           setConnectionStatus('disconnected');
@@ -170,12 +182,12 @@ const PublicSite: React.FC<PublicSiteProps> = ({
       audioRef.current.load();
     } catch (error) {
       console.error('[HOME] Erro ao sincronizar:', error);
-      setConnectionStatus('connecting');
+      setConnectionStatus('disconnected');
       scheduleRetry();
     }
   };
 
-  // Retry automático
+  // Retry automático só para erro de conexão
   const scheduleRetry = () => {
     if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
     retryTimeoutRef.current = setTimeout(() => {
@@ -211,40 +223,29 @@ const PublicSite: React.FC<PublicSiteProps> = ({
     if (!audioRef.current) return;
     
     if (localIsPlaying) {
+      // PAUSE - apenas pausa, não perde a lista
       audioRef.current.pause();
       setLocalIsPlaying(false);
-      if (syncIntervalRef.current) {
-        clearInterval(syncIntervalRef.current);
-        syncIntervalRef.current = null;
-      }
     } else {
-      setConnectionStatus('connecting');
-      syncWithBroadcast();
-      
-      // Re-sincroniza a cada 30 segundos para manter alinhado
-      syncIntervalRef.current = setInterval(() => {
-        if (localIsPlaying && audioRef.current && !audioRef.current.paused) {
-          // Verifica se precisa re-sincronizar (diferença > 5 segundos)
-          if (broadcastState && audioRef.current) {
-            const expectedTime = (Date.now() - broadcastState.startedAt) / 1000;
-            const actualTime = audioRef.current.currentTime;
-            if (Math.abs(expectedTime - actualTime) > 5) {
-              console.log('[HOME] Dessincronizado, ajustando...');
-              audioRef.current.currentTime = expectedTime;
-            }
-          }
-        }
-      }, 30000);
+      // PLAY - se já tem lista, continua; senão busca do Firebase
+      if (localQueue.length > 0 && audioRef.current.src) {
+        // Já tem lista, só continua tocando
+        audioRef.current.play().then(() => {
+          setLocalIsPlaying(true);
+          setConnectionStatus('connected');
+        }).catch(e => console.error('[HOME] Erro ao continuar:', e));
+      } else {
+        // Primeira vez - busca do Firebase
+        syncWithBroadcast();
+      }
     }
   };
 
-  // Detectar perda de conexão
+  // Detectar perda de conexão - apenas mostra status, não re-sincroniza
   useEffect(() => {
     const handleOnline = () => {
-      console.log('[HOME] Conexão restaurada, reconectando...');
-      if (localIsPlaying) {
-        syncWithBroadcast();
-      }
+      console.log('[HOME] Conexão restaurada');
+      if (localIsPlaying) setConnectionStatus('connected');
     };
     
     const handleOffline = () => {

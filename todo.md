@@ -36,3 +36,4 @@
 - [x] BACKGROUND PLAY: Usar Media Session API para tocar em segundo plano nos celulares
 - [x] AUTO-RECONEXÃO: Tentar reconectar automaticamente quando perder sinal de internet
 - [x] BUG: Home travada em música antiga do Firebase - não atualiza com o que o admin está tocando (CORRIGIDO - salvamento imediato + busca sempre do Firebase)
+- [x] LÓGICA CORRETA: Sincronizar UMA VEZ no play, depois seguir a lista em sequência sem re-sincronizar
