@@ -210,10 +210,16 @@ function App() {
   const currentSong = currentSongIndex >= 0 && currentSongIndex < playerQueue.length ? playerQueue[currentSongIndex] : null;
   const nextSong = currentSongIndex >= 0 && currentSongIndex < playerQueue.length - 1 ? playerQueue[currentSongIndex + 1] : (isAutoDJ && playerQueue.length > 0 ? playerQueue[0] : null);
 
-  // --- BROADCAST SYNC: Atualiza a música exibida mas NÃO sincroniza tempo automaticamente ---
+  // --- BROADCAST SYNC: Só atualiza quando NÃO está tocando ---
   useEffect(() => {
     // Se não tiver broadcast ativo, não faz nada
     if (!broadcastState || !broadcastState.currentSong) return;
+    
+    // SE ESTÁ TOCANDO, NÃO ATUALIZA - deixa a música atual terminar!
+    if (isPlaying) {
+      console.log('[Sync] Ignorando atualização - música tocando');
+      return;
+    }
     
     const currentBroadcastSong = broadcastState.currentSong;
     
@@ -223,15 +229,13 @@ function App() {
                       currentSong.url !== currentBroadcastSong.url;
     
     if (needsSync) {
-      console.log('[Sync] Atualizando música exibida:', currentBroadcastSong.title);
+      console.log('[Sync] Atualizando música exibida (pausado):', currentBroadcastSong.title);
       
       // Atualiza a fila e índice (para mostrar a música correta)
       setPlayerQueue(broadcastState.queue);
       setCurrentSongIndex(broadcastState.currentIndex);
-      
-      // NÃO sincroniza tempo automaticamente - só quando usuário clicar play
     }
-  }, [broadcastState]);
+  }, [broadcastState, isPlaying]);
 
   // --- AUDIO LOGIC ---
   // NÃO muda automaticamente quando broadcast atualiza
