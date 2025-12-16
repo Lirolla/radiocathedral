@@ -209,14 +209,19 @@ function App() {
   const currentSong = currentSongIndex >= 0 && currentSongIndex < playerQueue.length ? playerQueue[currentSongIndex] : null;
   const nextSong = currentSongIndex >= 0 && currentSongIndex < playerQueue.length - 1 ? playerQueue[currentSongIndex + 1] : (isAutoDJ && playerQueue.length > 0 ? playerQueue[0] : null);
 
-  // --- BROADCAST SYNC: Sincronização para ouvintes públicos ---
+  // --- BROADCAST SYNC: Sincronização para TODOS os usuários ---
   useEffect(() => {
-    // Só sincroniza se NÃO for o master (admin) e se tiver um broadcast ativo
-    if (isBroadcastMaster || !broadcastState || !broadcastState.currentSong) return;
+    // Se não tiver broadcast ativo, não faz nada
+    if (!broadcastState || !broadcastState.currentSong) return;
     
-    // Verifica se a música mudou
     const currentBroadcastSong = broadcastState.currentSong;
-    if (!currentSong || currentSong.id !== currentBroadcastSong.id || currentSong.url !== currentBroadcastSong.url) {
+    
+    // Verifica se a música atual é diferente do broadcast
+    const needsSync = !currentSong || 
+                      currentSong.id !== currentBroadcastSong.id || 
+                      currentSong.url !== currentBroadcastSong.url;
+    
+    if (needsSync) {
       console.log('[Sync] Sincronizando com broadcast:', currentBroadcastSong.title);
       
       // Atualiza a fila e índice
@@ -226,16 +231,23 @@ function App() {
       // Calcula o tempo correto baseado em quando a música começou
       if (audioRef.current && currentBroadcastSong.url) {
         const timeSinceStart = (Date.now() - broadcastState.startedAt) / 1000;
-        audioRef.current.src = currentBroadcastSong.url;
-        audioRef.current.load();
+        
+        // Só muda o src se for diferente
+        if (!audioRef.current.src.endsWith(currentBroadcastSong.url)) {
+          audioRef.current.src = currentBroadcastSong.url;
+          audioRef.current.load();
+        }
+        
+        // Ajusta o tempo para sincronizar
         audioRef.current.currentTime = Math.max(0, timeSinceStart);
+        
         if (broadcastState.isPlaying) {
           audioRef.current.play().catch(e => console.error('Autoplay blocked:', e));
           setIsPlaying(true);
         }
       }
     }
-  }, [broadcastState, isBroadcastMaster]);
+  }, [broadcastState]);
 
   // --- AUDIO LOGIC ---
   useEffect(() => {
@@ -337,8 +349,8 @@ function App() {
     setSongsPlayed(0);
     setIsPlaying(true); // FORCE START
     
-    // Broadcast sync: salvar estado para todos os ouvintes
-    if (isBroadcastMaster && shuffledSongs.length > 0) {
+    // Broadcast sync: SEMPRE salvar estado para todos os ouvintes
+    if (shuffledSongs.length > 0) {
       saveBroadcastState({
         currentSong: shuffledSongs[0],
         queue: shuffledSongs,
@@ -460,20 +472,18 @@ function App() {
         setCurrentSongIndex(nextIndex);
         setIsPlaying(true);
         
-        // Broadcast sync: atualizar estado quando muda de música
-        if (isBroadcastMaster) {
-          const nextSongToPlay = playerQueue[nextIndex];
-          if (nextSongToPlay) {
-            saveBroadcastState({
-              currentSong: nextSongToPlay,
-              queue: playerQueue,
-              currentIndex: nextIndex,
-              isPlaying: true,
-              startedAt: Date.now(),
-              currentTime: 0,
-              updatedAt: Date.now()
-            });
-          }
+        // Broadcast sync: SEMPRE atualizar estado quando muda de música
+        const nextSongToPlay = playerQueue[nextIndex];
+        if (nextSongToPlay) {
+          saveBroadcastState({
+            currentSong: nextSongToPlay,
+            queue: playerQueue,
+            currentIndex: nextIndex,
+            isPlaying: true,
+            startedAt: Date.now(),
+            currentTime: 0,
+            updatedAt: Date.now()
+          });
         }
     } else {
         setIsPlaying(false);
@@ -488,10 +498,11 @@ function App() {
   };
 
   useEffect(() => {
-      if (isAutoDJ && playlists.length > 0 && playerQueue.length === 0) {
+      // Só inicia AutoDJ se NÃO tiver um broadcast ativo (para não sobrescrever)
+      if (isAutoDJ && playlists.length > 0 && playerQueue.length === 0 && !broadcastState?.currentSong) {
           checkAndEnforceSchedule(false);
       }
-  }, [playlists]);
+  }, [playlists, broadcastState]);
 
   const handleAddToStudioQueue = (song: Song) => { setStudioQueue(prev => [...prev, song]); };
   const handleRemoveFromStudioQueue = (id: string) => { setStudioQueue(prev => prev.filter(s => s.id !== id)); };

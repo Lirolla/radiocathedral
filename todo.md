@@ -19,3 +19,6 @@
 ## Nova Funcionalidade
 - [x] Implementar sincronização de áudio por tempo do servidor (todos ouvem a mesma música no mesmo momento) - CONCLUÍDO
 - [x] Testes de broadcast sync criados e passando (6 testes)
+
+## Bugs a Corrigir
+- [x] Sincronização não persiste ao atualizar página - cada refresh escolhe música aleatória diferente (CORRIGIDO)
