@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Song, ThemeColor, RadioStationConfig, Playlist, Vote, InboxMessage, ScheduleItem } from '../types';
+import { Song, ThemeColor, RadioStationConfig, Playlist, Vote, InboxMessage } from '../types';
 import { PlayIcon, PauseIcon, MusicIcon, ClockIcon, PhoneIcon, MegaphoneIcon, CalendarIcon, LockIcon, StarIcon, CheckIcon, XMarkIcon, HeartIcon, MicIcon } from './Icons';
 import LoginModal from './LoginModal';
 
@@ -36,7 +36,7 @@ const PublicSite: React.FC<PublicSiteProps> = ({
   onSendMessage
 }) => {
   // Classic Tab State (For Template 1)
-  const [activeTab, setActiveTab] = useState<'home' | 'requests' | 'contact' | 'top10' | 'about' | 'schedule'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'requests' | 'contact' | 'top10' | 'about'>('home');
   const [time, setTime] = useState<string>('');
   
   // Login State
@@ -263,66 +263,6 @@ const PublicSite: React.FC<PublicSiteProps> = ({
         </div>
     </div>
   );
-
-  const renderSchedule = () => {
-    // Buscar schedule do App.tsx via props
-    const [scheduleItems, setScheduleItems] = React.useState<ScheduleItem[]>([]);
-
-    React.useEffect(() => {
-      // Buscar do Firebase
-      import('../services/dbService').then(({ subscribeToSchedule }) => {
-        const unsubscribe = subscribeToSchedule((items: ScheduleItem[]) => {
-          // Ordenar por horário
-          const sorted = items.sort((a: ScheduleItem, b: ScheduleItem) => {
-            const timeA = a.time.split(':').map(Number);
-            const timeB = b.time.split(':').map(Number);
-            return timeA[0] * 60 + timeA[1] - (timeB[0] * 60 + timeB[1]);
-          });
-          setScheduleItems(sorted);
-        });
-        return () => unsubscribe();
-      });
-    }, []);
-
-    return (
-      <div id="schedule" className="w-full max-w-4xl py-20 animate-in slide-in-from-right-10 fade-in duration-500 mx-auto">
-        <header className="mb-12 text-center">
-          <h2 className="text-3xl md:text-5xl font-black mb-2 text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400">
-            PROGRAMAÇÃO
-          </h2>
-          <p className="text-gray-400 tracking-widest uppercase text-xs font-bold">Confira nossa grade de programação</p>
-        </header>
-        <div className="bg-black/40 backdrop-blur-md rounded-3xl border border-white/5 p-4 md:p-8">
-          {scheduleItems.length === 0 ? (
-            <div className="text-center text-gray-500 py-10">
-              Nenhuma programação configurada ainda.
-            </div>
-          ) : (
-            scheduleItems.map((item, index) => (
-              <div key={index} className="flex items-center gap-4 md:gap-6 p-4 mb-2 hover:bg-white/5 rounded-xl transition-all group border-b border-white/5 last:border-0">
-                <div className={`text-2xl font-black w-20 text-center ${colors.text}`}>
-                  {item.time}
-                </div>
-                <div className="flex-1 text-left">
-                  <h3 className="text-lg md:text-xl font-bold text-white group-hover:text-white transition">Playlist ID: {item.playlistId}</h3>
-                  <div className="flex gap-1 mt-1">
-                    {item.days.map((dayNum: number, i: number) => {
-                      const dayNames = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-                      return (
-                        <span key={i} className="text-xs px-2 py-0.5 rounded-full bg-white/10 text-gray-400">
-                          {dayNames[dayNum]}
-                        </span>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
-    );
-  };
 
   const renderRequests = () => (
     <div id="requests" className="w-full max-w-2xl py-20 animate-in slide-in-from-right-10 fade-in duration-500 mx-auto">
@@ -693,11 +633,6 @@ const PublicSite: React.FC<PublicSiteProps> = ({
                 >Pedidos</button>
                 
                 <button 
-                    onClick={() => isOnePage ? scrollToSection('schedule') : setActiveTab('schedule')} 
-                    className={`hover:text-white transition-all hover:scale-105 ${!isOnePage && activeTab === 'schedule' ? `text-white border-b-2 ${colors.border}` : ''}`}
-                >Programação</button>
-                
-                <button 
                     onClick={() => isOnePage ? scrollToSection('about') : setActiveTab('about')} 
                     className={`hover:text-white transition-all hover:scale-105 ${!isOnePage && activeTab === 'about' ? `text-white border-b-2 ${colors.border}` : ''}`}
                 >Quem Somos</button>
@@ -736,7 +671,6 @@ const PublicSite: React.FC<PublicSiteProps> = ({
                 )}
                 {activeTab === 'top10' && renderTop10()}
                 {activeTab === 'requests' && renderRequests()}
-                {activeTab === 'schedule' && renderSchedule()}
                 {activeTab === 'about' && renderAbout()}
                 {activeTab === 'contact' && renderContact()}
             </div>
