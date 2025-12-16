@@ -31,3 +31,4 @@
 - [x] BUG: Música pulando para o final no player do admin - não toca lisa, pula pro final e depois toca (CORRIGIDO - relógio observa o admin e salva no Firebase a cada 5s)
 - [x] BUG: Ouvinte fica fixo em uma música só - volta ao início em vez de acompanhar o progresso do admin (CORRIGIDO - ouvinte sincroniza ao clicar play e quando música termina)
 - [x] BUG CRÍTICO: Admin não está tocando liso - música travando (CORRIGIDO - refs para evitar re-renders, lógica de áudio isolada)
+- [x] REVERTER: Remover lógica de sincronização que está causando problemas no player do admin (FEITO - player simplificado)
