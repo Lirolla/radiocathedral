@@ -9,6 +9,8 @@
 - [x] Preview funcionando
 
 ## Próximas Tarefas
+- [x] Adicionar seção "Programação" na home mostrando a grade de horários do Schedule
+- [ ] Corrigir contador de ouvintes - não está contando quando abre em dois celulares
 - [ ] Ajustes de design/cores (aguardando instruções do usuário)
 - [ ] Novas funcionalidades (aguardando instruções do usuário)
 - [ ] Publicação final
