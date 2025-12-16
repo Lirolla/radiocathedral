@@ -1,9 +1,9 @@
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Song, ThemeColor, RadioStationConfig, Playlist, Vote, InboxMessage } from '../types';
 import { PlayIcon, PauseIcon, MusicIcon, ClockIcon, PhoneIcon, MegaphoneIcon, CalendarIcon, LockIcon, StarIcon, CheckIcon, XMarkIcon, HeartIcon, MicIcon } from './Icons';
 import LoginModal from './LoginModal';
-import { getBroadcastState, subscribeToBroadcast, BroadcastState } from '../services/dbService';
+// Firebase sync removido - usando player original
 
 interface PublicSiteProps {
   currentSong: Song | null;
@@ -67,204 +67,9 @@ const PublicSite: React.FC<PublicSiteProps> = ({
 
   const isOnePage = config.publicTemplate === 'template2';
 
-  // ===========================================
-  // PLAYER INDEPENDENTE DA HOME (LÊ DO FIREBASE)
-  // ===========================================
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const [localIsPlaying, setLocalIsPlaying] = useState(false);
-  const [localCurrentSong, setLocalCurrentSong] = useState<Song | null>(null);
-  const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
-  
-  // Lista local que veio do Firebase - só atualiza no primeiro play
-  const [localQueue, setLocalQueue] = useState<Song[]>([]);
-  const [localIndex, setLocalIndex] = useState(0);
-  const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Criar elemento de áudio uma vez
-  useEffect(() => {
-    audioRef.current = new Audio();
-    audioRef.current.preload = 'auto';
-    
-    return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
-      if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
-    };
-  }, []);
-
-  // Quando música termina, avança para próxima da lista LOCAL (não busca do Firebase)
-  useEffect(() => {
-    if (!audioRef.current) return;
-    
-    audioRef.current.onended = () => {
-      console.log('[HOME] Música terminou, avançando na lista local...');
-      playNextInQueue();
-    };
-    
-    audioRef.current.onerror = () => {
-      console.log('[HOME] Erro no áudio, tentando próxima...');
-      playNextInQueue();
-    };
-
-    audioRef.current.onplaying = () => {
-      setConnectionStatus('connected');
-    };
-  }, [localQueue, localIndex]);
-
-  // Função para tocar próxima música da lista LOCAL
-  const playNextInQueue = () => {
-    if (localQueue.length === 0) {
-      console.log('[HOME] Lista vazia');
-      return;
-    }
-    
-    const nextIndex = (localIndex + 1) % localQueue.length; // Loop na lista
-    console.log(`[HOME] Avançando para ${nextIndex + 1}/${localQueue.length}`);
-    setLocalIndex(nextIndex);
-    
-    const nextSong = localQueue[nextIndex];
-    if (nextSong && audioRef.current) {
-      setLocalCurrentSong(nextSong);
-      audioRef.current.src = nextSong.url;
-      audioRef.current.load();
-      audioRef.current.play().then(() => {
-        setupMediaSession(nextSong);
-      }).catch(e => console.error('[HOME] Erro ao tocar:', e));
-    }
-  };
-
-  // Função para sincronizar com o broadcast - SÓ CHAMADA NO PRIMEIRO PLAY
-  const syncWithBroadcast = async () => {
-    try {
-      setConnectionStatus('connecting');
-      const state = await getBroadcastState();
-      console.log('[HOME] Estado do Firebase:', state);
-      
-      if (!state || !state.currentSong || !audioRef.current) {
-        console.log('[HOME] Nenhum broadcast ativo');
-        setConnectionStatus('disconnected');
-        return;
-      }
-
-      // Salva a lista e o índice LOCALMENTE
-      setLocalQueue(state.queue || [state.currentSong]);
-      setLocalIndex(state.currentIndex || 0);
-      setLocalCurrentSong(state.currentSong);
-      
-      const timeSinceStart = (Date.now() - state.startedAt) / 1000;
-      console.log(`[HOME] Carregando: ${state.currentSong.title}`);
-      console.log(`[HOME] Lista com ${state.queue?.length || 1} músicas, índice ${state.currentIndex}`);
-      
-      audioRef.current.src = state.currentSong.url;
-      
-      audioRef.current.onloadedmetadata = () => {
-        if (!audioRef.current) return;
-        const duration = audioRef.current.duration || 0;
-        
-        // Pula para o tempo correto
-        if (timeSinceStart > 0 && timeSinceStart < duration) {
-          audioRef.current.currentTime = timeSinceStart;
-          console.log(`[HOME] Pulando para ${timeSinceStart.toFixed(1)}s`);
-        }
-        
-        audioRef.current.play().then(() => {
-          setLocalIsPlaying(true);
-          setConnectionStatus('connected');
-          setupMediaSession(state.currentSong!);
-        }).catch(e => {
-          console.error('[HOME] Autoplay bloqueado:', e);
-          setConnectionStatus('disconnected');
-        });
-      };
-      
-      audioRef.current.load();
-    } catch (error) {
-      console.error('[HOME] Erro ao sincronizar:', error);
-      setConnectionStatus('disconnected');
-      scheduleRetry();
-    }
-  };
-
-  // Retry automático só para erro de conexão
-  const scheduleRetry = () => {
-    if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
-    retryTimeoutRef.current = setTimeout(() => {
-      console.log('[HOME] Tentando reconectar...');
-      syncWithBroadcast();
-    }, 5000);
-  };
-
-  // Media Session API para tocar em segundo plano
-  const setupMediaSession = (song: Song) => {
-    if ('mediaSession' in navigator) {
-      navigator.mediaSession.metadata = new MediaMetadata({
-        title: song.title,
-        artist: song.artist,
-        album: config.name,
-        artwork: [] // Song não tem imagem de capa
-      });
-      
-      navigator.mediaSession.setActionHandler('play', () => {
-        audioRef.current?.play();
-        setLocalIsPlaying(true);
-      });
-      
-      navigator.mediaSession.setActionHandler('pause', () => {
-        audioRef.current?.pause();
-        setLocalIsPlaying(false);
-      });
-    }
-  };
-
-  // Toggle play do player local
-  const handleLocalTogglePlay = () => {
-    if (!audioRef.current) return;
-    
-    if (localIsPlaying) {
-      // PAUSE - apenas pausa, não perde a lista
-      audioRef.current.pause();
-      setLocalIsPlaying(false);
-    } else {
-      // PLAY - se já tem lista, continua; senão busca do Firebase
-      if (localQueue.length > 0 && audioRef.current.src) {
-        // Já tem lista, só continua tocando
-        audioRef.current.play().then(() => {
-          setLocalIsPlaying(true);
-          setConnectionStatus('connected');
-        }).catch(e => console.error('[HOME] Erro ao continuar:', e));
-      } else {
-        // Primeira vez - busca do Firebase
-        syncWithBroadcast();
-      }
-    }
-  };
-
-  // Detectar perda de conexão - apenas mostra status, não re-sincroniza
-  useEffect(() => {
-    const handleOnline = () => {
-      console.log('[HOME] Conexão restaurada');
-      if (localIsPlaying) setConnectionStatus('connected');
-    };
-    
-    const handleOffline = () => {
-      console.log('[HOME] Conexão perdida');
-      setConnectionStatus('connecting');
-    };
-    
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-    
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, [localIsPlaying]);
-
-  // Usar o player local em vez do prop
-  const displaySong = localCurrentSong || currentSong;
-  const displayIsPlaying = localIsPlaying;
+  // Player usa os props originais - sem player independente
+  const displaySong = currentSong;
+  const displayIsPlaying = isPlaying;
 
   // Calculate Real Top 10
   const realTop10 = useMemo(() => {
@@ -640,8 +445,8 @@ const PublicSite: React.FC<PublicSiteProps> = ({
         
         {/* Status Badge */}
         <div className={`mb-8 inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-md text-sm font-medium ${colors.text}`}>
-            <span className={`w-2 h-2 rounded-full ${displayIsPlaying ? 'bg-green-400 animate-pulse' : connectionStatus === 'connecting' ? 'bg-yellow-400 animate-pulse' : 'bg-red-400'}`}></span>
-            {displayIsPlaying ? 'Ao Vivo' : connectionStatus === 'connecting' ? 'Conectando...' : 'Rádio Pausada'}
+            <span className={`w-2 h-2 rounded-full ${displayIsPlaying ? 'bg-green-400 animate-pulse' : 'bg-red-400'}`}></span>
+            {displayIsPlaying ? 'Ao Vivo' : 'Rádio Pausada'}
         </div>
 
         {/* Big Typography (Title) */}
@@ -650,7 +455,7 @@ const PublicSite: React.FC<PublicSiteProps> = ({
         </h1>
 
         {/* Center Player / CD */}
-        <div className="relative group cursor-pointer mb-8" onClick={handleLocalTogglePlay}>
+        <div className="relative group cursor-pointer mb-8" onClick={onTogglePlay}>
             {/* Glow Effect */}
             <div className={`absolute -inset-4 bg-gradient-to-r ${colors.gradient} rounded-full blur-xl opacity-40 group-hover:opacity-70 transition duration-500 ${displayIsPlaying ? 'animate-pulse' : ''}`}></div>
             
@@ -671,10 +476,7 @@ const PublicSite: React.FC<PublicSiteProps> = ({
                     </div>
                 </div>
             </div>
-            {/* Status de Conexão */}
-            {connectionStatus === 'connecting' && (
-              <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 text-xs text-yellow-400 animate-pulse">Conectando...</div>
-            )}
+
         </div>
 
         {/* Subtitle (Artist / Default Slogan) - MOVED HERE and ENLARGED */}
