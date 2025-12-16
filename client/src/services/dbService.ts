@@ -327,3 +327,17 @@ export const subscribeToBroadcast = (callback: (state: BroadcastState | null) =>
     callback(null);
   });
 };
+
+// Buscar estado atual do broadcast (chamado quando ouvinte clica play)
+export const getBroadcastState = async (): Promise<BroadcastState | null> => {
+  try {
+    const docSnap = await getDoc(doc(db, COLLECTIONS.SETTINGS, "broadcast"));
+    if (docSnap.exists()) {
+      return docSnap.data() as BroadcastState;
+    }
+    return null;
+  } catch (error: any) {
+    console.error("Erro ao buscar estado do broadcast:", error);
+    return null;
+  }
+};

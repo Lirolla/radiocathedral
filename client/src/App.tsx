@@ -40,6 +40,7 @@ import {
   deleteMessage,
   saveBroadcastState,
   subscribeToBroadcast,
+  getBroadcastState,
   BroadcastState
 } from './services/dbService';
 
@@ -209,7 +210,7 @@ function App() {
   const currentSong = currentSongIndex >= 0 && currentSongIndex < playerQueue.length ? playerQueue[currentSongIndex] : null;
   const nextSong = currentSongIndex >= 0 && currentSongIndex < playerQueue.length - 1 ? playerQueue[currentSongIndex + 1] : (isAutoDJ && playerQueue.length > 0 ? playerQueue[0] : null);
 
-  // --- BROADCAST SYNC: Sincronização para TODOS os usuários ---
+  // --- BROADCAST SYNC: Atualiza a música exibida mas NÃO sincroniza tempo automaticamente ---
   useEffect(() => {
     // Se não tiver broadcast ativo, não faz nada
     if (!broadcastState || !broadcastState.currentSong) return;
@@ -222,30 +223,13 @@ function App() {
                       currentSong.url !== currentBroadcastSong.url;
     
     if (needsSync) {
-      console.log('[Sync] Sincronizando com broadcast:', currentBroadcastSong.title);
+      console.log('[Sync] Atualizando música exibida:', currentBroadcastSong.title);
       
-      // Atualiza a fila e índice
+      // Atualiza a fila e índice (para mostrar a música correta)
       setPlayerQueue(broadcastState.queue);
       setCurrentSongIndex(broadcastState.currentIndex);
       
-      // Calcula o tempo correto baseado em quando a música começou
-      if (audioRef.current && currentBroadcastSong.url) {
-        const timeSinceStart = (Date.now() - broadcastState.startedAt) / 1000;
-        
-        // Só muda o src se for diferente
-        if (!audioRef.current.src.endsWith(currentBroadcastSong.url)) {
-          audioRef.current.src = currentBroadcastSong.url;
-          audioRef.current.load();
-        }
-        
-        // Ajusta o tempo para sincronizar
-        audioRef.current.currentTime = Math.max(0, timeSinceStart);
-        
-        if (broadcastState.isPlaying) {
-          audioRef.current.play().catch(e => console.error('Autoplay blocked:', e));
-          setIsPlaying(true);
-        }
-      }
+      // NÃO sincroniza tempo automaticamente - só quando usuário clicar play
     }
   }, [broadcastState]);
 
@@ -274,7 +258,32 @@ function App() {
       }
   }, [isPlaying]);
 
-  const togglePlay = () => { if (currentSong) setIsPlaying(!isPlaying); };
+  const togglePlay = async () => { 
+    if (!currentSong) return;
+    
+    // Se está pausado e vai dar play, sincroniza com o broadcast
+    if (!isPlaying) {
+      const liveState = await getBroadcastState();
+      if (liveState && liveState.currentSong && audioRef.current) {
+        // Calcula o tempo atual baseado em quando a música começou
+        const timeSinceStart = (Date.now() - liveState.startedAt) / 1000;
+        
+        // Se a música mudou, atualiza
+        if (liveState.currentSong.id !== currentSong.id) {
+          setPlayerQueue(liveState.queue);
+          setCurrentSongIndex(liveState.currentIndex);
+          audioRef.current.src = liveState.currentSong.url;
+          audioRef.current.load();
+        }
+        
+        // Sincroniza o tempo
+        audioRef.current.currentTime = Math.max(0, timeSinceStart);
+        console.log('[Sync] Sincronizado no play - tempo:', timeSinceStart.toFixed(1), 's');
+      }
+    }
+    
+    setIsPlaying(!isPlaying); 
+  };
 
   const handleTimeUpdate = () => {
     if (audioRef.current) {

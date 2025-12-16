@@ -22,3 +22,4 @@
 
 ## Bugs a Corrigir
 - [x] Sincronização não persiste ao atualizar página - cada refresh escolhe música aleatória diferente (CORRIGIDO)
+- [x] Música fica pulando devido a re-sincronização excessiva - não toca inteira (CORRIGIDO - sincroniza só no play)
