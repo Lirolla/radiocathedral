@@ -234,9 +234,12 @@ function App() {
   }, [broadcastState]);
 
   // --- AUDIO LOGIC ---
+  // NÃO muda automaticamente quando broadcast atualiza
+  // Só atualiza o src se o usuário já estiver tocando (isPlaying = true)
   useEffect(() => {
-    if (currentSong && audioRef.current) {
+    if (currentSong && audioRef.current && isPlaying) {
       const currentSrc = audioRef.current.src;
+      // Só muda se a URL for diferente E se já estiver tocando
       if (!currentSrc.endsWith(currentSong.url) && currentSong.url !== currentSrc) {
           audioRef.current.src = currentSong.url;
           audioRef.current.load();
@@ -249,7 +252,7 @@ function App() {
       setIsPlaying(false);
       setProgress(0);
     }
-  }, [currentSong]);
+  }, [currentSong, isPlaying]);
 
   useEffect(() => {
       if (audioRef.current) {
