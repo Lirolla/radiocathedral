@@ -268,27 +268,8 @@ function App() {
   const togglePlay = async () => { 
     if (!currentSong) return;
     
-    // Se está pausado e vai dar play, sincroniza com o broadcast
-    if (!isPlaying) {
-      const liveState = await getBroadcastState();
-      if (liveState && liveState.currentSong && audioRef.current) {
-        // Calcula o tempo atual baseado em quando a música começou
-        const timeSinceStart = (Date.now() - liveState.startedAt) / 1000;
-        
-        // Se a música mudou, atualiza
-        if (liveState.currentSong.id !== currentSong.id) {
-          setPlayerQueue(liveState.queue);
-          setCurrentSongIndex(liveState.currentIndex);
-          audioRef.current.src = liveState.currentSong.url;
-          audioRef.current.load();
-        }
-        
-        // Sincroniza o tempo
-        audioRef.current.currentTime = Math.max(0, timeSinceStart);
-        console.log('[Sync] Sincronizado no play - tempo:', timeSinceStart.toFixed(1), 's');
-      }
-    }
-    
+    // Simplesmente dá play/pause sem sincronizar
+    // A sincronização acontece apenas quando a página carrega (pausado)
     setIsPlaying(!isPlaying); 
   };
 

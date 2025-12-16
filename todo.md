@@ -25,3 +25,4 @@
 - [x] Música fica pulando devido a re-sincronização excessiva - não toca inteira (CORRIGIDO - sincroniza só no play)
 - [x] Música ainda muda antes de terminar - precisa investigar causa raiz (CORRIGIDO - AUDIO LOGIC só muda se isPlaying=true)
 - [x] Bug persiste: música toca só 10 segundos e muda - investigar causa raiz mais profunda (CORRIGIDO - broadcast sync ignora quando isPlaying=true)
+- [x] Bug CRÍTICO: música ainda não toca inteira - análise profunda necessária (CORRIGIDO - removida sincronização de tempo no togglePlay)
