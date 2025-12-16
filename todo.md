@@ -28,3 +28,4 @@
 - [x] Bug CRÍTICO: música ainda não toca inteira - análise profunda necessária (CORRIGIDO - removida sincronização de tempo no togglePlay)
 - [x] LIMPEZA GERAL: Simplificar lógica de sincronização - código está confuso com múltiplas coisas controlando a música (CORRIGIDO - AutoDJ só roda para admin, ouvintes só leem do Firebase)
 - [x] SINCRONIZAÇÃO DEFINITIVA: Ouvinte deve ler do Firebase e tocar a mesma música no mesmo segundo que o admin (IMPLEMENTADO - sincroniza automaticamente ao carregar página)
+- [x] BUG: Música pulando para o final no player do admin - não toca lisa, pula pro final e depois toca (CORRIGIDO - relógio observa o admin e salva no Firebase a cada 5s)

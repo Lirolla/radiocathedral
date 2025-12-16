@@ -90,8 +90,8 @@ function App() {
 
   // --- BROADCAST SYNC STATE ---
   const [isBroadcastMaster, setIsBroadcastMaster] = useState(false); // Admin/AutoDJ controla o broadcast
-  const [hasSyncedOnLoad, setHasSyncedOnLoad] = useState(false); // Sincronizou ao carregar?
-  const isWaitingForSync = useRef(false); // Esperando próxima música do Firebase?
+  const [broadcastState, setBroadcastState] = useState<BroadcastState | null>(null); // Estado do broadcast para ouvintes
+  const lastBroadcastSave = useRef<number>(0); // Último timestamp que salvou no Firebase
 
   // --- AUTHENTICATION & FIREBASE SUBSCRIPTIONS ---
   useEffect(() => {
@@ -205,82 +205,105 @@ function App() {
   const nextSong = currentSongIndex >= 0 && currentSongIndex < playerQueue.length - 1 ? playerQueue[currentSongIndex + 1] : (isAutoDJ && playerQueue.length > 0 ? playerQueue[0] : null);
 
   // ===========================================
-  // SINCRONIZAÇÃO SIMPLES E DEFINITIVA
+  // SINCRONIZAÇÃO: RELÓGIO QUE OBSERVA O ADMIN
   // ===========================================
   
-  // Função para sincronizar com o broadcast do Firebase
-  const syncWithBroadcast = async () => {
-    if (isBroadcastMaster) return; // Admin não sincroniza, ele controla
+  // RELÓGIO: A cada 5 segundos, se for admin e estiver tocando, salva o estado no Firebase
+  useEffect(() => {
+    if (!isBroadcastMaster || !isPlaying || !currentSong) return;
     
-    console.log('[SYNC] Buscando estado do broadcast...');
-    const state = await getBroadcastState();
+    const saveInterval = setInterval(() => {
+      if (audioRef.current && currentSong) {
+        const now = Date.now();
+        // Só salva se passou mais de 3 segundos desde o último save
+        if (now - lastBroadcastSave.current > 3000) {
+          const currentTime = audioRef.current.currentTime;
+          saveBroadcastState({
+            currentSong: currentSong,
+            queue: playerQueue,
+            currentIndex: currentSongIndex,
+            isPlaying: true,
+            startedAt: now - (currentTime * 1000), // Calcula quando a música começou
+            currentTime: currentTime,
+            updatedAt: now
+          });
+          lastBroadcastSave.current = now;
+          console.log(`[BROADCAST] Salvando estado: ${currentSong.title} @ ${currentTime.toFixed(1)}s`);
+        }
+      }
+    }, 5000);
     
-    if (!state || !state.currentSong) {
-      console.log('[SYNC] Nenhum broadcast ativo');
+    return () => clearInterval(saveInterval);
+  }, [isBroadcastMaster, isPlaying, currentSong, playerQueue, currentSongIndex]);
+
+  // OUVINTE: Subscribir ao broadcast do Firebase
+  useEffect(() => {
+    if (isBroadcastMaster) return; // Admin não precisa ouvir
+    
+    const unsubscribe = subscribeToBroadcast((state) => {
+      setBroadcastState(state);
+    });
+    
+    return () => unsubscribe();
+  }, [isBroadcastMaster]);
+
+  // OUVINTE: Quando o broadcastState muda, sincroniza
+  useEffect(() => {
+    if (isBroadcastMaster) return; // Admin não sincroniza
+    if (!broadcastState || !broadcastState.currentSong) return;
+    
+    // Se não está tocando, apenas atualiza a informação visual
+    if (!isPlaying) {
+      setPlayerQueue(broadcastState.queue);
+      setCurrentSongIndex(broadcastState.currentIndex);
       return;
     }
     
-    // Calcula quanto tempo passou desde que a música começou
-    const timeSinceStart = (Date.now() - state.startedAt) / 1000;
-    console.log(`[SYNC] Música: ${state.currentSong.title}, Tempo passado: ${timeSinceStart.toFixed(1)}s`);
-    
-    // Atualiza a fila e índice
-    setPlayerQueue(state.queue);
-    setCurrentSongIndex(state.currentIndex);
-    
-    // Carrega e pula para o tempo correto
-    if (audioRef.current) {
-      audioRef.current.src = state.currentSong.url;
-      audioRef.current.load();
+    // Se está tocando mas é uma música diferente, sincroniza
+    const currentUrl = audioRef.current?.src || '';
+    if (!currentUrl.includes(broadcastState.currentSong.url.split('/').pop() || '')) {
+      console.log('[SYNC] Música diferente detectada, sincronizando...');
+      setPlayerQueue(broadcastState.queue);
+      setCurrentSongIndex(broadcastState.currentIndex);
       
-      audioRef.current.onloadedmetadata = () => {
-        if (audioRef.current) {
-          const audioDuration = audioRef.current.duration || 0;
-          
-          // Se o tempo passado for menor que a duração, pula para esse ponto
-          if (timeSinceStart < audioDuration && timeSinceStart > 0) {
-            audioRef.current.currentTime = timeSinceStart;
-            console.log(`[SYNC] Pulando para ${timeSinceStart.toFixed(1)}s de ${audioDuration.toFixed(1)}s`);
+      if (audioRef.current) {
+        const timeSinceStart = (Date.now() - broadcastState.startedAt) / 1000;
+        audioRef.current.src = broadcastState.currentSong.url;
+        audioRef.current.load();
+        audioRef.current.onloadedmetadata = () => {
+          if (audioRef.current) {
+            const duration = audioRef.current.duration || 0;
+            if (timeSinceStart > 0 && timeSinceStart < duration) {
+              audioRef.current.currentTime = timeSinceStart;
+            }
+            audioRef.current.play().catch(console.error);
           }
-          
-          // Toca automaticamente
-          audioRef.current.play().then(() => {
-            setIsPlaying(true);
-            console.log('[SYNC] Tocando!');
-          }).catch(e => {
-            console.error('[SYNC] Autoplay bloqueado:', e);
-            setIsPlaying(false);
-          });
-        }
-      };
+        };
+      }
     }
-    
-    setHasSyncedOnLoad(true);
-  };
+  }, [broadcastState, isBroadcastMaster]);
 
-  // Sincroniza automaticamente quando a página carrega (para ouvintes públicos)
+  // --- AUDIO LOGIC ---
   useEffect(() => {
-    if (userRole === 'public' && !hasSyncedOnLoad && !isBroadcastMaster) {
-      // Pequeno delay para garantir que o Firebase está conectado
-      const timer = setTimeout(() => {
-        syncWithBroadcast();
-      }, 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [userRole, hasSyncedOnLoad, isBroadcastMaster]);
-
-  // --- AUDIO LOGIC (só para admin/master) ---
-  useEffect(() => {
-    // Para admin: carrega a música quando muda
-    if (isBroadcastMaster && currentSong && audioRef.current) {
+    // Carrega a música quando muda (para todos)
+    if (currentSong && audioRef.current) {
       const currentSrc = audioRef.current.src;
-      if (!currentSrc.endsWith(currentSong.url) && currentSong.url !== currentSrc) {
+      const songFileName = currentSong.url.split('/').pop() || '';
+      
+      // Só muda se for uma música diferente
+      if (!currentSrc.includes(songFileName)) {
+          console.log(`[AUDIO] Carregando: ${currentSong.title}`);
           audioRef.current.src = currentSong.url;
           audioRef.current.load();
-          audioRef.current.play().then(() => setIsPlaying(true)).catch(e => {
-              console.error("Autoplay prevented:", e);
-              setIsPlaying(false);
-          });
+          
+          // Para admin, começa do início
+          // Para ouvinte, o useEffect do broadcastState cuida da sincronização
+          if (isBroadcastMaster) {
+            audioRef.current.play().then(() => setIsPlaying(true)).catch(e => {
+                console.error("Autoplay prevented:", e);
+                setIsPlaying(false);
+            });
+          }
       } 
     }
   }, [currentSong, isBroadcastMaster]);
@@ -292,13 +315,8 @@ function App() {
       }
   }, [isPlaying]);
 
-  const togglePlay = async () => { 
-    if (!currentSong && !isBroadcastMaster) {
-      // Se não tem música e é ouvinte, sincroniza
-      await syncWithBroadcast();
-      return;
-    }
-    
+  const togglePlay = () => { 
+    if (!currentSong) return;
     setIsPlaying(!isPlaying); 
   };
 
@@ -317,18 +335,16 @@ function App() {
   };
 
   // Quando a música termina
-  const handleEnded = async () => {
+  const handleEnded = () => {
     // Se for admin/master, avança normalmente
     if (isBroadcastMaster) {
       setTimeout(() => { playNext(); }, 500);
       return;
     }
     
-    // Para ouvintes: busca o estado atual do Firebase e sincroniza
-    console.log('[SYNC] Música terminou - sincronizando com broadcast...');
-    isWaitingForSync.current = true;
-    await syncWithBroadcast();
-    isWaitingForSync.current = false;
+    // Para ouvintes: a próxima música virá do broadcastState automaticamente
+    // O useEffect do broadcastState vai cuidar de sincronizar
+    console.log('[SYNC] Música terminou - aguardando próxima do broadcast...');
   };
 
   // --- DB WRAPPERS ---
@@ -691,7 +707,6 @@ function App() {
       setUserRole('admin');
       setCurrentView('dashboard');
       setIsBroadcastMaster(true); // Admin controla o broadcast
-      setHasSyncedOnLoad(false); // Reset sync flag
   };
 
   const handleLocutorLogin = (accessKey: string) => {
@@ -701,7 +716,6 @@ function App() {
           setUserRole('locutor');
           setCurrentView('studio');
           setIsBroadcastMaster(true); // Locutor também controla
-          setHasSyncedOnLoad(false);
           handleLoadDJProfile(foundDj.id);
       } else {
           alert("Chave de acesso inválida ou locutor não encontrado.");
@@ -713,7 +727,6 @@ function App() {
       setCurrentView('public_site');
       setCurrentUser(null);
       setIsBroadcastMaster(false);
-      setHasSyncedOnLoad(false); // Vai sincronizar de novo como ouvinte
   };
 
   const renderContent = () => {
