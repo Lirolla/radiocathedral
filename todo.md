@@ -25,3 +25,5 @@
 - [x] Diminuir fonte do menu de navegação no mobile (está passando do tamanho da tela)
 - [x] Diminuir fonte do menu de navegação no mobile (está passando do tamanho da tela)
 - [x] Adicionar logo da RadioTocai como favicon e ícone do player mobile (iOS lockscreen)
+- [x] Logo não aparece no player do iOS (lockscreen) - precisa corrigir
+- [x] Alterar slogan de "Sistema de Rádio Online" para "RadioTocai - tocando nossa época"

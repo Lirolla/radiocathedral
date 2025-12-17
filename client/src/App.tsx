@@ -218,6 +218,30 @@ function App() {
   const currentSong = currentSongIndex >= 0 && currentSongIndex < playerQueue.length ? playerQueue[currentSongIndex] : null;
   const nextSong = currentSongIndex >= 0 && currentSongIndex < playerQueue.length - 1 ? playerQueue[currentSongIndex + 1] : (isAutoDJ && playerQueue.length > 0 ? playerQueue[0] : null);
 
+  // --- UPDATE MEDIA SESSION (iOS LOCKSCREEN) ---
+  useEffect(() => {
+    if (currentSong && 'mediaSession' in navigator) {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: currentSong.title,
+        artist: currentSong.artist || 'Desconhecido',
+        album: stationConfig.name,
+        artwork: [
+          { src: stationConfig.logoUrl || '/favicon.png', sizes: '96x96', type: 'image/png' },
+          { src: stationConfig.logoUrl || '/favicon.png', sizes: '128x128', type: 'image/png' },
+          { src: stationConfig.logoUrl || '/favicon.png', sizes: '192x192', type: 'image/png' },
+          { src: stationConfig.logoUrl || '/favicon.png', sizes: '256x256', type: 'image/png' },
+          { src: stationConfig.logoUrl || '/favicon.png', sizes: '384x384', type: 'image/png' },
+          { src: stationConfig.logoUrl || '/favicon.png', sizes: '512x512', type: 'image/png' },
+        ]
+      });
+
+      navigator.mediaSession.setActionHandler('play', () => setIsPlaying(true));
+      navigator.mediaSession.setActionHandler('pause', () => setIsPlaying(false));
+      navigator.mediaSession.setActionHandler('previoustrack', () => playPrev());
+      navigator.mediaSession.setActionHandler('nexttrack', () => playNext());
+    }
+  }, [currentSong, stationConfig.logoUrl, stationConfig.name]);
+
   // --- AUDIO LOGIC ---
   useEffect(() => {
     if (currentSong && audioRef.current) {
