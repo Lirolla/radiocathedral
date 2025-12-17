@@ -35,3 +35,4 @@
 - [x] Corrigir bug: música pula para próxima antes de terminar (sincronização muito agressiva)
 - [x] Adicionar contador de tempo total na tela de playlist (ex: "Total: 12 músicas • 1h 23min")
 - [x] CRÍTICO: Sincronização entrando em loop infinito (músicas ficam mudando sem parar)
+- [x] Remover sistema de sincronização global (causando loop) - manter apenas transição suave

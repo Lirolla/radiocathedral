@@ -220,89 +220,7 @@ function App() {
   const currentSong = currentSongIndex >= 0 && currentSongIndex < playerQueue.length ? playerQueue[currentSongIndex] : null;
   const nextSong = currentSongIndex >= 0 && currentSongIndex < playerQueue.length - 1 ? playerQueue[currentSongIndex + 1] : (isAutoDJ && playerQueue.length > 0 ? playerQueue[0] : null);
 
-  // --- RADIO SYNC (Global synchronization with backend) ---
-  const allSongs = playlists.flatMap(p => p.songs);
-  const [lastSyncTime, setLastSyncTime] = useState<number>(0);
-  const [isSyncing, setIsSyncing] = useState(false);
-  
-  const handleSync = useCallback((songIndex: number, position: number, playlist: Song[]) => {
-    // Only sync if we're in AutoDJ mode and not in guest mode
-    if (!isAutoDJ || guestMode.active || currentView !== 'public_site' || isSyncing) {
-      return;
-    }
-
-    // Prevent sync loops - only sync if enough time has passed
-    const now = Date.now();
-    if (now - lastSyncTime < 3000) {
-      return;
-    }
-
-    setIsSyncing(true);
-
-    // Update playlist if different
-    if (JSON.stringify(playlist.map(s => s.id)) !== JSON.stringify(playerQueue.map(s => s.id))) {
-      console.log('[RadioSync] Updating playlist');
-      setPlayerQueue(playlist);
-    }
-
-    // Only update song index if significantly different (not just +1 or -1)
-    const indexDiff = Math.abs(songIndex - currentSongIndex);
-    if (indexDiff > 1 || (indexDiff === 1 && now - lastSyncTime > 10000)) {
-      console.log('[RadioSync] Jumping to song', songIndex, 'from', currentSongIndex);
-      setCurrentSongIndex(songIndex);
-    }
-
-    // Seek to correct position only if very desynchronized
-    if (audioRef.current && Math.abs(audioRef.current.currentTime - position) > 5) {
-      console.log('[RadioSync] Seeking to position', position, 'from', audioRef.current.currentTime);
-      audioRef.current.currentTime = position;
-    }
-
-    setLastSyncTime(now);
-    setTimeout(() => setIsSyncing(false), 1000);
-  }, [isAutoDJ, guestMode.active, currentView, playerQueue, currentSongIndex, lastSyncTime, isSyncing]);
-
-  // Import and use the sync hook
-  const { data: radioState } = trpc.radio.getState.useQuery(undefined, {
-    enabled: isAutoDJ && !guestMode.active && currentView === 'public_site',
-    refetchInterval: 5000,
-  });
-
-  // Sync effect
-  useEffect(() => {
-    if (!radioState || !isAutoDJ || guestMode.active || currentView !== 'public_site') {
-      return;
-    }
-
-    try {
-      const playlistOrder = radioState.playlistOrder ? JSON.parse(radioState.playlistOrder) : [];
-      const playlist = playlistOrder
-        .map((id: string) => allSongs.find(s => s.id === id))
-        .filter((s: Song | undefined): s is Song => s !== undefined);
-
-      if (playlist.length === 0) return;
-
-      // Calculate elapsed time for CURRENT song only
-      const now = new Date();
-      const songStartTime = new Date(radioState.songStartedAt);
-      const elapsedSeconds = Math.floor((now.getTime() - songStartTime.getTime()) / 1000);
-
-      const currentIndex = radioState.currentSongIndex;
-      const currentSong = playlist[currentIndex];
-
-      // Only sync if we're within the song duration
-      // Don't auto-advance - let the natural player flow handle that
-      if (currentSong && currentSong.duration) {
-        const currentPosition = Math.min(elapsedSeconds, currentSong.duration - 1);
-        handleSync(currentIndex, Math.max(0, currentPosition), playlist);
-      } else {
-        // No duration info, just sync index
-        handleSync(currentIndex, 0, playlist);
-      }
-    } catch (error) {
-      console.error('[RadioSync] Error:', error);
-    }
-  }, [radioState, isAutoDJ, guestMode.active, currentView, allSongs, handleSync]);
+  // Radio sync removed - using simple local playback
 
   // --- UPDATE MEDIA SESSION (iOS LOCKSCREEN) ---
   useEffect(() => {
@@ -464,10 +382,7 @@ function App() {
       await saveMessage({ ...msg, timestamp: new Date().toISOString(), read: false });
   };
 
-  // --- MIXER LOGIC (WITH GLOBAL SYNC) ---
-  const initPlaylistMutation = trpc.radio.initState.useMutation();
-  const updateStateMutation = trpc.radio.updateState.useMutation();
-
+  // --- MIXER LOGIC ---
   const playPlaylistMixed = async (playlistId: string, silent: boolean = false) => {
     const targetPlaylist = playlists.find(p => p.id === playlistId);
     if (!targetPlaylist || targetPlaylist.songs.length === 0) {
@@ -476,34 +391,14 @@ function App() {
     }
     const validSongs = targetPlaylist.songs.filter(s => s.url);
     
-    // Generate shuffled order ONCE and save to backend
     const shuffledSongs = [...validSongs].sort(() => Math.random() - 0.5);
-    const playlistOrder = JSON.stringify(shuffledSongs.map(s => s.id));
-
     console.log(`[AutoDJ] Iniciando playlist: ${targetPlaylist.name}`);
     
-    try {
-      // Initialize global radio state in backend
-      await initPlaylistMutation.mutateAsync({
-        playlistId,
-        playlistOrder,
-      });
-
-      // Set local state (will be synced by useRadioSync)
-      setPlayerQueue(shuffledSongs);
-      setCurrentSongIndex(0);
-      setIsAutoDJ(true);
-      setSongsPlayed(0);
-      setIsPlaying(true);
-    } catch (error) {
-      console.error('[AutoDJ] Failed to init playlist:', error);
-      // Fallback to local playback if backend fails
-      setPlayerQueue(shuffledSongs);
-      setCurrentSongIndex(0);
-      setIsAutoDJ(true);
-      setSongsPlayed(0);
-      setIsPlaying(true);
-    }
+    setPlayerQueue(shuffledSongs);
+    setCurrentSongIndex(0);
+    setIsAutoDJ(true);
+    setSongsPlayed(0);
+    setIsPlaying(true);
   };
 
   // --- SCHEDULER & AUTODJ ENGINE ---
@@ -614,16 +509,6 @@ function App() {
 
     if (nextIndex !== -1) {
         const justFinishedSong = playerQueue[currentSongIndex];
-        
-        // Update backend with new song index (for global sync)
-        if (isAutoDJ && !guestMode.active && currentView === 'public_site') {
-          updateStateMutation.mutate({
-            currentSongIndex: nextIndex,
-            songStartedAt: new Date(),
-            currentPosition: 0,
-            isPlaying: 1,
-          });
-        }
         
         if (isAutoDJ && justFinishedSong && !justFinishedSong.isJingle) {
             const newCount = songsPlayed + 1;
