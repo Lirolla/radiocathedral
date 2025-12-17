@@ -10,7 +10,8 @@
 
 ## Próximas Tarefas
 - [x] Corrigir contador de ouvintes - não está contando quando abre em dois celulares
-- [ ] Adicionar seção de Programação na home mostrando a grade de horários do Schedule
+- [x] Trocar senha do admin para Pagotto24
+- [x] Adicionar seção de Programação na home mostrando a grade de horários do Schedule
 - [ ] Garantir que funciona com os dois templates de cores
 - [ ] Ajustes de design/cores (aguardando instruções do usuário)
 - [ ] Novas funcionalidades (aguardando instruções do usuário)

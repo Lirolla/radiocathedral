@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Song, ThemeColor, RadioStationConfig, Playlist, Vote, InboxMessage } from '../types';
+import { Song, ThemeColor, RadioStationConfig, Playlist, Vote, InboxMessage, ScheduleItem } from '../types';
 import { PlayIcon, PauseIcon, MusicIcon, ClockIcon, PhoneIcon, MegaphoneIcon, CalendarIcon, LockIcon, StarIcon, CheckIcon, XMarkIcon, HeartIcon, MicIcon } from './Icons';
 import LoginModal from './LoginModal';
 import { registerListener, updateListenerHeartbeat, unregisterListener } from '../services/dbService';
@@ -20,6 +20,9 @@ interface PublicSiteProps {
   onVote?: (songId: string, songTitle: string, artist: string, name: string, email: string) => Promise<void>;
   // Messaging Props
   onSendMessage?: (msg: Omit<InboxMessage, 'id' | 'timestamp' | 'read'>) => Promise<void>;
+  // Schedule Props
+  schedule?: ScheduleItem[];
+  playlists?: Playlist[];
 }
 
 const PublicSite: React.FC<PublicSiteProps> = ({ 
@@ -34,10 +37,12 @@ const PublicSite: React.FC<PublicSiteProps> = ({
   top10Playlist,
   votes = [],
   onVote,
-  onSendMessage
+  onSendMessage,
+  schedule = [],
+  playlists = []
 }) => {
   // Classic Tab State (For Template 1)
-  const [activeTab, setActiveTab] = useState<'home' | 'requests' | 'contact' | 'top10' | 'about'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'requests' | 'contact' | 'top10' | 'about' | 'schedule'>('home');
   const [time, setTime] = useState<string>('');
   
   // Login State
@@ -135,7 +140,7 @@ const PublicSite: React.FC<PublicSiteProps> = ({
   };
 
   const handleAdminSubmit = (password: string) => {
-      if (password === 'admin123') {
+      if (password === 'Pagotto24') {
           setIsAdminLoginOpen(false);
           onAdminLogin(password);
       } else {
@@ -411,6 +416,63 @@ const PublicSite: React.FC<PublicSiteProps> = ({
     </div>
   );
 
+  const renderSchedule = () => {
+    const DAYS_OF_WEEK = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+    
+    // Agrupar schedule por horário
+    const sortedSchedule = [...schedule].sort((a, b) => a.time.localeCompare(b.time));
+    
+    return (
+      <div id="schedule" className="w-full max-w-4xl py-20 animate-in slide-in-from-right-10 fade-in duration-500 mx-auto">
+        <header className="mb-12 text-center">
+          <h2 className="text-3xl md:text-5xl font-black mb-2 text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400">
+            PROGRAMAÇÃO
+          </h2>
+          <p className="text-gray-400">Confira nossa grade de horários semanal</p>
+        </header>
+
+        <div className="bg-black/40 backdrop-blur-md rounded-3xl border border-white/5 p-4 md:p-8">
+          {sortedSchedule.length === 0 ? (
+            <div className="text-center text-gray-500 py-10">
+              Nenhuma programação configurada no momento.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {sortedSchedule.filter(item => item.isActive).map((item, index) => {
+                const playlist = playlists.find(p => p.id === item.playlistId);
+                const playlistName = playlist ? playlist.name : 'Playlist não encontrada';
+                
+                return (
+                  <div key={index} className="flex flex-col md:flex-row items-start md:items-center gap-4 p-4 hover:bg-white/5 rounded-xl transition-all border-b border-white/5 last:border-0">
+                    {/* Horário */}
+                    <div className="flex items-center gap-3 min-w-[100px]">
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center ${colors.bg} text-white`}>
+                        <ClockIcon className="w-6 h-6" />
+                      </div>
+                      <span className="text-2xl font-bold text-white">{item.time}</span>
+                    </div>
+                    
+                    {/* Nome da Playlist */}
+                    <div className="flex-1">
+                      <h3 className="text-lg md:text-xl font-bold text-white">{playlistName}</h3>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {item.days.map(day => (
+                          <span key={day} className="text-xs px-2 py-1 rounded-full bg-white/10 text-gray-300">
+                            {DAYS_OF_WEEK[day]}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   const renderContact = () => (
     <div id="contact" className="w-full max-w-3xl py-20 animate-in slide-in-from-right-10 fade-in duration-500 mx-auto">
         <header className="mb-12 text-center">
@@ -655,6 +717,11 @@ const PublicSite: React.FC<PublicSiteProps> = ({
                 >Pedidos</button>
                 
                 <button 
+                    onClick={() => isOnePage ? scrollToSection('schedule') : setActiveTab('schedule')} 
+                    className={`hover:text-white transition-all hover:scale-105 ${!isOnePage && activeTab === 'schedule' ? `text-white border-b-2 ${colors.border}` : ''}`}
+                >Programação</button>
+                
+                <button 
                     onClick={() => isOnePage ? scrollToSection('about') : setActiveTab('about')} 
                     className={`hover:text-white transition-all hover:scale-105 ${!isOnePage && activeTab === 'about' ? `text-white border-b-2 ${colors.border}` : ''}`}
                 >Quem Somos</button>
@@ -693,6 +760,7 @@ const PublicSite: React.FC<PublicSiteProps> = ({
                 )}
                 {activeTab === 'top10' && renderTop10()}
                 {activeTab === 'requests' && renderRequests()}
+                {activeTab === 'schedule' && renderSchedule()}
                 {activeTab === 'about' && renderAbout()}
                 {activeTab === 'contact' && renderContact()}
             </div>
@@ -716,6 +784,10 @@ const PublicSite: React.FC<PublicSiteProps> = ({
                 </div>
 
                 <div className="bg-black/20 border-y border-white/5">
+                    {renderSchedule()}
+                </div>
+
+                <div className="bg-gradient-to-b from-black/40 to-transparent">
                     {renderAbout()}
                 </div>
 

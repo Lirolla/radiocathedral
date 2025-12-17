@@ -574,6 +574,7 @@ function App() {
              onLocutorLogin={handleLocutorLogin}
              onTogglePlay={togglePlay} config={stationConfig}
              top10Playlist={top10Playlist} votes={votes} onVote={handleRegisterVote} onSendMessage={handleSendMessage}
+             schedule={schedule} playlists={playlists}
         />
       ) : (
         <>
