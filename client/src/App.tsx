@@ -1,5 +1,6 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { trpc } from './lib/trpc';
 import { signInAnonymously } from "firebase/auth";
 import { auth } from "./services/firebaseConfig"; // Importar auth
 import Sidebar from './components/Sidebar';
@@ -210,6 +211,7 @@ function App() {
   const [songHistory, setSongHistory] = useState<Song[]>([]);
   
   const [currentScheduleId, setCurrentScheduleId] = useState<string | null>(null);
+  const [pendingScheduleChange, setPendingScheduleChange] = useState<{ scheduleId: string | null; playlistId: string } | null>(null);
 
   const jinglePlaylist = playlists.find(p => p.type === 'jingle' && p.ownerId === 'station');
   const commercialPlaylist = playlists.find(p => p.type === 'commercial' && p.ownerId === 'station');
@@ -217,6 +219,83 @@ function App() {
 
   const currentSong = currentSongIndex >= 0 && currentSongIndex < playerQueue.length ? playerQueue[currentSongIndex] : null;
   const nextSong = currentSongIndex >= 0 && currentSongIndex < playerQueue.length - 1 ? playerQueue[currentSongIndex + 1] : (isAutoDJ && playerQueue.length > 0 ? playerQueue[0] : null);
+
+  // --- RADIO SYNC (Global synchronization with backend) ---
+  const allSongs = playlists.flatMap(p => p.songs);
+  
+  const handleSync = useCallback((songIndex: number, position: number, playlist: Song[]) => {
+    // Only sync if we're in AutoDJ mode and not in guest mode
+    if (!isAutoDJ || guestMode.active || currentView !== 'public_site') {
+      return;
+    }
+
+    // Update playlist if different
+    if (JSON.stringify(playlist.map(s => s.id)) !== JSON.stringify(playerQueue.map(s => s.id))) {
+      console.log('[RadioSync] Updating playlist');
+      setPlayerQueue(playlist);
+    }
+
+    // Update song index if different
+    if (songIndex !== currentSongIndex) {
+      console.log('[RadioSync] Jumping to song', songIndex);
+      setCurrentSongIndex(songIndex);
+    }
+
+    // Seek to correct position
+    if (audioRef.current && Math.abs(audioRef.current.currentTime - position) > 2) {
+      console.log('[RadioSync] Seeking to position', position);
+      audioRef.current.currentTime = position;
+    }
+  }, [isAutoDJ, guestMode.active, currentView, playerQueue, currentSongIndex]);
+
+  // Import and use the sync hook
+  const { data: radioState } = trpc.radio.getState.useQuery(undefined, {
+    enabled: isAutoDJ && !guestMode.active && currentView === 'public_site',
+    refetchInterval: 5000,
+  });
+
+  // Sync effect
+  useEffect(() => {
+    if (!radioState || !isAutoDJ || guestMode.active || currentView !== 'public_site') {
+      return;
+    }
+
+    try {
+      const playlistOrder = radioState.playlistOrder ? JSON.parse(radioState.playlistOrder) : [];
+      const playlist = playlistOrder
+        .map((id: string) => allSongs.find(s => s.id === id))
+        .filter((s: Song | undefined): s is Song => s !== undefined);
+
+      if (playlist.length === 0) return;
+
+      // Calculate elapsed time
+      const now = new Date();
+      const songStartTime = new Date(radioState.songStartedAt);
+      const elapsedSeconds = Math.floor((now.getTime() - songStartTime.getTime()) / 1000);
+
+      let currentIndex = radioState.currentSongIndex;
+      let currentPosition = elapsedSeconds;
+
+      // Advance through songs if needed
+      while (currentIndex < playlist.length) {
+        const song = playlist[currentIndex];
+        if (!song.duration || currentPosition < song.duration) {
+          break;
+        }
+        currentPosition -= song.duration;
+        currentIndex++;
+      }
+
+      if (currentIndex >= playlist.length) {
+        currentIndex = 0;
+        currentPosition = 0;
+      }
+
+      handleSync(currentIndex, Math.max(0, currentPosition), playlist);
+    } catch (error) {
+      console.error('[RadioSync] Error:', error);
+    }
+  }, [radioState, isAutoDJ, guestMode.active, currentView, allSongs, handleSync]);
 
   // --- UPDATE MEDIA SESSION (iOS LOCKSCREEN) ---
   useEffect(() => {
@@ -329,7 +408,15 @@ function App() {
   };
 
   const handleEnded = () => {
-    setTimeout(() => { playNext(); }, 1000);
+    // Check if there's a pending schedule change
+    if (pendingScheduleChange) {
+      console.log('[Schedule] Applying pending schedule change after song ended');
+      setCurrentScheduleId(pendingScheduleChange.scheduleId);
+      playPlaylistMixed(pendingScheduleChange.playlistId);
+      setPendingScheduleChange(null);
+    } else {
+      setTimeout(() => { playNext(); }, 1000);
+    }
   };
 
   // --- DB WRAPPERS ---
@@ -370,22 +457,45 @@ function App() {
       await saveMessage({ ...msg, timestamp: new Date().toISOString(), read: false });
   };
 
-  // --- MIXER LOGIC ---
-  const playPlaylistMixed = (playlistId: string, silent: boolean = false) => {
+  // --- MIXER LOGIC (WITH GLOBAL SYNC) ---
+  const initPlaylistMutation = trpc.radio.initState.useMutation();
+
+  const playPlaylistMixed = async (playlistId: string, silent: boolean = false) => {
     const targetPlaylist = playlists.find(p => p.id === playlistId);
     if (!targetPlaylist || targetPlaylist.songs.length === 0) {
       if(!silent) console.warn("AutoDJ: Tentou tocar playlist vazia.", playlistId);
       return;
     }
     const validSongs = targetPlaylist.songs.filter(s => s.url);
+    
+    // Generate shuffled order ONCE and save to backend
     const shuffledSongs = [...validSongs].sort(() => Math.random() - 0.5);
+    const playlistOrder = JSON.stringify(shuffledSongs.map(s => s.id));
 
     console.log(`[AutoDJ] Iniciando playlist: ${targetPlaylist.name}`);
-    setPlayerQueue(shuffledSongs);
-    setCurrentSongIndex(0);
-    setIsAutoDJ(true);
-    setSongsPlayed(0);
-    setIsPlaying(true); // FORCE START
+    
+    try {
+      // Initialize global radio state in backend
+      await initPlaylistMutation.mutateAsync({
+        playlistId,
+        playlistOrder,
+      });
+
+      // Set local state (will be synced by useRadioSync)
+      setPlayerQueue(shuffledSongs);
+      setCurrentSongIndex(0);
+      setIsAutoDJ(true);
+      setSongsPlayed(0);
+      setIsPlaying(true);
+    } catch (error) {
+      console.error('[AutoDJ] Failed to init playlist:', error);
+      // Fallback to local playback if backend fails
+      setPlayerQueue(shuffledSongs);
+      setCurrentSongIndex(0);
+      setIsAutoDJ(true);
+      setSongsPlayed(0);
+      setIsPlaying(true);
+    }
   };
 
   // --- SCHEDULER & AUTODJ ENGINE ---
@@ -412,25 +522,48 @@ function App() {
       if (activeItem) {
           const item = activeItem as ScheduleItem;
           if (forceUpdate || currentScheduleId !== item.id) {
-              console.log(`[AutoDJ] Novo horário detectado! Mudando para: ${item.time}`);
-              setCurrentScheduleId(item.id);
-              playPlaylistMixed(item.playlistId);
+              if (currentSong && isPlaying) {
+                  // Schedule change for after current song ends (smooth transition)
+                  console.log(`[AutoDJ] Novo horário detectado! Agendando mudança para: ${item.time} (após música atual)`);
+                  setPendingScheduleChange({ scheduleId: item.id, playlistId: item.playlistId });
+              } else {
+                  // No song playing, change immediately
+                  console.log(`[AutoDJ] Novo horário detectado! Mudando para: ${item.time}`);
+                  setCurrentScheduleId(item.id);
+                  playPlaylistMixed(item.playlistId);
+              }
           } else if (playerQueue.length === 0 && isAutoDJ) {
               console.log("[AutoDJ] Fila vazia durante programa agendado. Reiniciando lista...");
               playPlaylistMixed(item.playlistId);
           }
       } else {
           if (forceUpdate || currentScheduleId !== null || playerQueue.length === 0) {
-              console.log("[AutoDJ] Nenhum programa agendado agora. Iniciando Rotação Geral...");
-              setCurrentScheduleId(null);
-              
-              const musicPlaylists = playlists.filter(p => p.type === 'music' && p.songs.length > 0 && p.id !== 'backup-playlist-default');
-              if (musicPlaylists.length > 0) {
-                  const randomPl = musicPlaylists[Math.floor(Math.random() * musicPlaylists.length)];
-                  playPlaylistMixed(randomPl.id, true);
+              if (currentSong && isPlaying) {
+                  // Schedule change for after current song ends
+                  console.log("[AutoDJ] Nenhum programa agendado. Agendando Rotação Geral (após música atual)...");
+                  const musicPlaylists = playlists.filter(p => p.type === 'music' && p.songs.length > 0 && p.id !== 'backup-playlist-default');
+                  if (musicPlaylists.length > 0) {
+                      const randomPl = musicPlaylists[Math.floor(Math.random() * musicPlaylists.length)];
+                      setPendingScheduleChange({ scheduleId: null, playlistId: randomPl.id });
+                  } else {
+                      const backup = playlists.find(p => p.id === 'backup-playlist-default');
+                      if (backup && backup.songs.length > 0) {
+                          setPendingScheduleChange({ scheduleId: null, playlistId: backup.id });
+                      }
+                  }
               } else {
-                  const backup = playlists.find(p => p.id === 'backup-playlist-default');
-                  if (backup && backup.songs.length > 0) playPlaylistMixed(backup.id, true);
+                  // No song playing, change immediately
+                  console.log("[AutoDJ] Nenhum programa agendado agora. Iniciando Rotação Geral...");
+                  setCurrentScheduleId(null);
+                  
+                  const musicPlaylists = playlists.filter(p => p.type === 'music' && p.songs.length > 0 && p.id !== 'backup-playlist-default');
+                  if (musicPlaylists.length > 0) {
+                      const randomPl = musicPlaylists[Math.floor(Math.random() * musicPlaylists.length)];
+                      playPlaylistMixed(randomPl.id, true);
+                  } else {
+                      const backup = playlists.find(p => p.id === 'backup-playlist-default');
+                      if (backup && backup.songs.length > 0) playPlaylistMixed(backup.id, true);
+                  }
               }
           }
       }

@@ -28,3 +28,7 @@
 - [x] Logo não aparece no player do iOS (lockscreen) - precisa corrigir
 - [x] Alterar slogan de "Sistema de Rádio Online" para "RadioTocai - tocando nossa época"
 - [x] Implementar retomada automática da reprodução quando sair de apps que interrompem áudio (Instagram, TikTok, etc.)
+- [x] Remover embaralhamento individual (cada pessoa ouve diferente)
+- [x] Implementar sistema de rádio sincronizada (todos ouvem a mesma música ao mesmo tempo)
+- [x] Adicionar transição suave entre programas (espera música terminar antes de mudar)
+- [x] Criar relógio global da rádio no banco de dados
