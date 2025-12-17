@@ -84,6 +84,29 @@ function App() {
       timeAnnouncementInterval: 5, enableTimeAnnouncement: true
   });
 
+  // --- UPDATE FAVICON WHEN LOGO CHANGES ---
+  useEffect(() => {
+    if (stationConfig.logoUrl) {
+      // Update favicon
+      let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
+      if (!link) {
+        link = document.createElement('link');
+        link.rel = 'icon';
+        document.getElementsByTagName('head')[0].appendChild(link);
+      }
+      link.href = stationConfig.logoUrl;
+
+      // Update apple-touch-icon for iOS
+      let appleIcon = document.querySelector("link[rel='apple-touch-icon']") as HTMLLinkElement;
+      if (!appleIcon) {
+        appleIcon = document.createElement('link');
+        appleIcon.rel = 'apple-touch-icon';
+        document.getElementsByTagName('head')[0].appendChild(appleIcon);
+      }
+      appleIcon.href = stationConfig.logoUrl;
+    }
+  }, [stationConfig.logoUrl]);
+
   // --- AUTHENTICATION & FIREBASE SUBSCRIPTIONS ---
   useEffect(() => {
     // 1. Check for Guest Mode in URL (?guest=station-id) FIRST

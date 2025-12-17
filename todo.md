@@ -24,3 +24,4 @@
 - [x] Adicionar tabs por dia da semana na seção de Programação (Segunda, Terça, Quarta, etc.)
 - [x] Diminuir fonte do menu de navegação no mobile (está passando do tamanho da tela)
 - [x] Diminuir fonte do menu de navegação no mobile (está passando do tamanho da tela)
+- [x] Adicionar logo da RadioTocai como favicon e ícone do player mobile (iOS lockscreen)
