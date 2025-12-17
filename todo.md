@@ -33,3 +33,4 @@
 - [x] Adicionar transição suave entre programas (espera música terminar antes de mudar)
 - [x] Criar relógio global da rádio no banco de dados
 - [x] Corrigir bug: música pula para próxima antes de terminar (sincronização muito agressiva)
+- [x] Adicionar contador de tempo total na tela de playlist (ex: "Total: 12 músicas • 1h 23min")
