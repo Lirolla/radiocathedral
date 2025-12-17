@@ -70,6 +70,9 @@ const PublicSite: React.FC<PublicSiteProps> = ({
   const [loveStory, setLoveStory] = useState('');
   const [loveSuccess, setLoveSuccess] = useState(false);
 
+  // Schedule Day Selection State
+  const [selectedScheduleDay, setSelectedScheduleDay] = useState<number>(new Date().getDay());
+
   const isOnePage = config.publicTemplate === 'template2';
 
   // Calculate Real Top 10
@@ -418,50 +421,65 @@ const PublicSite: React.FC<PublicSiteProps> = ({
 
   const renderSchedule = () => {
     const DAYS_OF_WEEK = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+    const DAYS_FULL = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
     
-    // Agrupar schedule por horário
-    const sortedSchedule = [...schedule].sort((a, b) => a.time.localeCompare(b.time));
+    // Filtrar schedule pelo dia selecionado
+    const daySchedule = schedule
+      .filter(item => item.isActive && item.days.includes(selectedScheduleDay))
+      .sort((a, b) => a.time.localeCompare(b.time));
     
     return (
       <div id="schedule" className="w-full max-w-4xl py-20 animate-in slide-in-from-right-10 fade-in duration-500 mx-auto">
-        <header className="mb-12 text-center">
+        <header className="mb-8 text-center">
           <h2 className="text-3xl md:text-5xl font-black mb-2 text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400">
             PROGRAMAÇÃO
           </h2>
-          <p className="text-gray-400">Confira nossa grade de horários semanal</p>
+          <p className="text-gray-400 text-sm">Confira nossa grade de horários semanal</p>
         </header>
 
-        <div className="bg-black/40 backdrop-blur-md rounded-3xl border border-white/5 p-4 md:p-8">
-          {sortedSchedule.length === 0 ? (
-            <div className="text-center text-gray-500 py-10">
-              Nenhuma programação configurada no momento.
+        {/* Tabs dos dias da semana */}
+        <div className="flex flex-wrap justify-center gap-2 mb-6">
+          {DAYS_OF_WEEK.map((day, index) => (
+            <button
+              key={index}
+              onClick={() => setSelectedScheduleDay(index)}
+              className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${
+                selectedScheduleDay === index
+                  ? `${colors.bg} text-white shadow-lg`
+                  : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
+              }`}
+            >
+              {day}
+            </button>
+          ))}
+        </div>
+
+        <div className="bg-black/40 backdrop-blur-md rounded-3xl border border-white/5 p-4 md:p-6">
+          <h3 className="text-xl font-bold text-white mb-4 text-center">{DAYS_FULL[selectedScheduleDay]}</h3>
+          
+          {daySchedule.length === 0 ? (
+            <div className="text-center text-gray-500 py-8">
+              Nenhuma programação para {DAYS_FULL[selectedScheduleDay]}.
             </div>
           ) : (
-            <div className="space-y-4">
-              {sortedSchedule.filter(item => item.isActive).map((item, index) => {
+            <div className="space-y-3">
+              {daySchedule.map((item, index) => {
                 const playlist = playlists.find(p => p.id === item.playlistId);
                 const playlistName = playlist ? playlist.name : 'Playlist não encontrada';
                 
                 return (
-                  <div key={index} className="flex flex-col md:flex-row items-start md:items-center gap-4 p-4 hover:bg-white/5 rounded-xl transition-all border-b border-white/5 last:border-0">
+                  <div key={index} className="flex items-center gap-3 p-3 hover:bg-white/5 rounded-lg transition-all border-b border-white/5 last:border-0">
                     {/* Horário */}
-                    <div className="flex items-center gap-3 min-w-[100px]">
-                      <div className={`w-12 h-12 rounded-full flex items-center justify-center ${colors.bg} text-white`}>
-                        <ClockIcon className="w-6 h-6" />
+                    <div className="flex items-center gap-2 min-w-[80px]">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${colors.bg} text-white`}>
+                        <ClockIcon className="w-4 h-4" />
                       </div>
-                      <span className="text-2xl font-bold text-white">{item.time}</span>
+                      <span className="text-lg font-bold text-white">{item.time}</span>
                     </div>
                     
                     {/* Nome da Playlist */}
                     <div className="flex-1">
-                      <h3 className="text-lg md:text-xl font-bold text-white">{playlistName}</h3>
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {item.days.map(day => (
-                          <span key={day} className="text-xs px-2 py-1 rounded-full bg-white/10 text-gray-300">
-                            {DAYS_OF_WEEK[day]}
-                          </span>
-                        ))}
-                      </div>
+                      <h4 className="text-base font-bold text-white">{playlistName}</h4>
                     </div>
                   </div>
                 );
