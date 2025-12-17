@@ -708,6 +708,11 @@ const PublicSite: React.FC<PublicSiteProps> = ({
       {/* 5. MINIMALIST FOOTER */}
       <footer className="w-full z-20 py-6 text-center text-xs text-gray-500 bg-black/90 backdrop-blur-md border-t border-white/5 flex flex-col items-center gap-2">
         <p>&copy; {new Date().getFullYear()} {config.name}. Todos os direitos reservados.</p>
+        <p>
+          <a href="https://agencyl1.com" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-blue-400 transition">
+            Agencyl1.com
+          </a> &copy; {new Date().getFullYear()}
+        </p>
         
         <div className="flex items-center gap-4 mt-2">
             <button 
