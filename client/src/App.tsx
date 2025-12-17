@@ -269,6 +269,51 @@ function App() {
 
   const togglePlay = () => { if (currentSong) setIsPlaying(!isPlaying); };
 
+  // --- AUTO-RESUME AFTER AUDIO INTERRUPTION (Instagram, TikTok, etc.) ---
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      // Quando o usuário volta para a aba/app e havia uma música tocando
+      if (!document.hidden && currentSong && audioRef.current && audioRef.current.paused && isPlaying) {
+        console.log('Retomando reprodução após interrupção...');
+        audioRef.current.play().catch(e => console.error('Erro ao retomar:', e));
+      }
+    };
+
+    const handleAudioInterruption = () => {
+      // Quando o áudio é interrompido por outro app
+      if (audioRef.current && !audioRef.current.paused) {
+        console.log('Áudio interrompido por outro app');
+      }
+    };
+
+    const handleAudioResume = () => {
+      // Tentar retomar quando o áudio fica disponível novamente
+      if (currentSong && audioRef.current && audioRef.current.paused && isPlaying) {
+        console.log('Áudio disponível novamente, retomando...');
+        setTimeout(() => {
+          audioRef.current?.play().catch(e => console.error('Erro ao retomar:', e));
+        }, 300); // Pequeno delay para garantir que o sistema liberou o áudio
+      }
+    };
+
+    // Listeners
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    if (audioRef.current) {
+      audioRef.current.addEventListener('pause', handleAudioInterruption);
+      audioRef.current.addEventListener('play', handleAudioResume);
+    }
+
+    // Cleanup
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (audioRef.current) {
+        audioRef.current.removeEventListener('pause', handleAudioInterruption);
+        audioRef.current.removeEventListener('play', handleAudioResume);
+      }
+    };
+  }, [currentSong, isPlaying]);
+
   const handleTimeUpdate = () => {
     if (audioRef.current) {
       setProgress(audioRef.current.currentTime);
