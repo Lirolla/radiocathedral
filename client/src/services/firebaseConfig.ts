@@ -3,6 +3,7 @@ import { initializeApp } from "firebase/app";
 import { getAnalytics, isSupported } from "firebase/analytics";
 import { getFirestore } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
+import { getDatabase } from "firebase/database";
 
 // Configuração do Firebase
 // IMPORTANTE: Verifique se o projectId aqui é EXATAMENTE igual ao do seu console.
@@ -27,6 +28,7 @@ isSupported().then(yes => {
   }
 });
 
-// Inicializa e exporta o Firestore e Auth
+// Inicializa e exporta o Firestore, Realtime Database e Auth
 export const db = getFirestore(app);
+export const rtdb = getDatabase(app);
 export const auth = getAuth(app);

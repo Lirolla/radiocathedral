@@ -1,5 +1,5 @@
 
-import { db } from "./firebaseConfig";
+import { db, rtdb } from "./firebaseConfig";
 import { 
   collection, 
   doc, 
@@ -14,6 +14,7 @@ import {
   orderBy,
   limit
 } from "firebase/firestore";
+import { ref, set, update, remove, onValue } from "firebase/database";
 import { Playlist, DJ, ScheduleItem, RadioStationConfig, AutoDJSettings, Song, Vote, InboxMessage } from "../types";
 
 // Coleções
@@ -274,4 +275,51 @@ export const saveAutoDJSettings = async (autoDJ: AutoDJSettings) => {
     } catch (error: any) {
         console.error("Erro ao salvar autoDJ:", error);
     }
+};
+
+// ==================== LISTENERS ====================
+export const registerListener = async (listenerId: string) => {
+  try {
+    await set(ref(rtdb, `listeners/${listenerId}`), {
+      lastSeen: Date.now(),
+      connectedAt: Date.now()
+    });
+  } catch (error) {
+    console.error('Error registering listener:', error);
+  }
+};
+
+export const updateListenerHeartbeat = async (listenerId: string) => {
+  try {
+    await update(ref(rtdb, `listeners/${listenerId}`), {
+      lastSeen: Date.now()
+    });
+  } catch (error) {
+    console.error('Error updating listener heartbeat:', error);
+  }
+};
+
+export const unregisterListener = async (listenerId: string) => {
+  try {
+    await remove(ref(rtdb, `listeners/${listenerId}`));
+  } catch (error) {
+    console.error('Error unregistering listener:', error);
+  }
+};
+
+export const subscribeToListenersCount = (callback: (count: number) => void) => {
+  const listenersRef = ref(rtdb, 'listeners');
+  return onValue(listenersRef, (snapshot) => {
+    if (snapshot.exists()) {
+      const listeners = snapshot.val();
+      const now = Date.now();
+      // Count only listeners active in the last 60 seconds
+      const activeCount = Object.values(listeners).filter(
+        (listener: any) => now - listener.lastSeen < 60000
+      ).length;
+      callback(activeCount);
+    } else {
+      callback(0);
+    }
+  });
 };

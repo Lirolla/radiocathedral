@@ -1,8 +1,9 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Song, ThemeColor, RadioStationConfig, Playlist, Vote, InboxMessage } from '../types';
 import { PlayIcon, PauseIcon, MusicIcon, ClockIcon, PhoneIcon, MegaphoneIcon, CalendarIcon, LockIcon, StarIcon, CheckIcon, XMarkIcon, HeartIcon, MicIcon } from './Icons';
 import LoginModal from './LoginModal';
+import { registerListener, updateListenerHeartbeat, unregisterListener } from '../services/dbService';
 
 interface PublicSiteProps {
   currentSong: Song | null;
@@ -102,6 +103,27 @@ const PublicSite: React.FC<PublicSiteProps> = ({
     const interval = setInterval(updateTime, 1000);
     return () => clearInterval(interval);
   }, [config.timezone]);
+
+  // Listener tracking
+  const listenerIdRef = useRef<string>(`listener_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
+  
+  useEffect(() => {
+    const listenerId = listenerIdRef.current;
+    
+    // Register listener
+    registerListener(listenerId);
+    
+    // Heartbeat every 30 seconds
+    const heartbeatInterval = setInterval(() => {
+      updateListenerHeartbeat(listenerId);
+    }, 30000);
+    
+    // Cleanup on unmount
+    return () => {
+      clearInterval(heartbeatInterval);
+      unregisterListener(listenerId);
+    };
+  }, []);
 
   const scrollToSection = (id: string) => {
       const element = document.getElementById(id);
