@@ -22,3 +22,5 @@
 - [x] Adicionar link da Agencyl1 no rodapé do site
 - [x] Remover copyright da RadioTocai do rodapé (deixar apenas Agencyl1.com)
 - [x] Adicionar tabs por dia da semana na seção de Programação (Segunda, Terça, Quarta, etc.)
+- [x] Diminuir fonte do menu de navegação no mobile (está passando do tamanho da tela)
+- [x] Diminuir fonte do menu de navegação no mobile (está passando do tamanho da tela)

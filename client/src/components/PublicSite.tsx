@@ -718,7 +718,7 @@ const PublicSite: React.FC<PublicSiteProps> = ({
             </div>
 
             {/* Menu Logic: Template 1 (Tabs) vs Template 2 (Scroll Anchors) */}
-            <div className="flex items-center gap-6 md:gap-10 text-base font-bold uppercase tracking-widest text-gray-300">
+            <div className="flex items-center gap-2 md:gap-10 text-xs md:text-base font-bold uppercase tracking-wide md:tracking-widest text-gray-300">
                 <button 
                     onClick={() => isOnePage ? scrollToSection('home') : setActiveTab('home')} 
                     className={`hover:text-white transition-all hover:scale-105 ${!isOnePage && activeTab === 'home' ? `text-white border-b-2 ${colors.border}` : ''}`}
