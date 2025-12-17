@@ -222,12 +222,22 @@ function App() {
 
   // --- RADIO SYNC (Global synchronization with backend) ---
   const allSongs = playlists.flatMap(p => p.songs);
+  const [lastSyncTime, setLastSyncTime] = useState<number>(0);
+  const [isSyncing, setIsSyncing] = useState(false);
   
   const handleSync = useCallback((songIndex: number, position: number, playlist: Song[]) => {
     // Only sync if we're in AutoDJ mode and not in guest mode
-    if (!isAutoDJ || guestMode.active || currentView !== 'public_site') {
+    if (!isAutoDJ || guestMode.active || currentView !== 'public_site' || isSyncing) {
       return;
     }
+
+    // Prevent sync loops - only sync if enough time has passed
+    const now = Date.now();
+    if (now - lastSyncTime < 3000) {
+      return;
+    }
+
+    setIsSyncing(true);
 
     // Update playlist if different
     if (JSON.stringify(playlist.map(s => s.id)) !== JSON.stringify(playerQueue.map(s => s.id))) {
@@ -235,18 +245,22 @@ function App() {
       setPlayerQueue(playlist);
     }
 
-    // Update song index if different
-    if (songIndex !== currentSongIndex) {
-      console.log('[RadioSync] Jumping to song', songIndex);
+    // Only update song index if significantly different (not just +1 or -1)
+    const indexDiff = Math.abs(songIndex - currentSongIndex);
+    if (indexDiff > 1 || (indexDiff === 1 && now - lastSyncTime > 10000)) {
+      console.log('[RadioSync] Jumping to song', songIndex, 'from', currentSongIndex);
       setCurrentSongIndex(songIndex);
     }
 
-    // Seek to correct position
-    if (audioRef.current && Math.abs(audioRef.current.currentTime - position) > 2) {
-      console.log('[RadioSync] Seeking to position', position);
+    // Seek to correct position only if very desynchronized
+    if (audioRef.current && Math.abs(audioRef.current.currentTime - position) > 5) {
+      console.log('[RadioSync] Seeking to position', position, 'from', audioRef.current.currentTime);
       audioRef.current.currentTime = position;
     }
-  }, [isAutoDJ, guestMode.active, currentView, playerQueue, currentSongIndex]);
+
+    setLastSyncTime(now);
+    setTimeout(() => setIsSyncing(false), 1000);
+  }, [isAutoDJ, guestMode.active, currentView, playerQueue, currentSongIndex, lastSyncTime, isSyncing]);
 
   // Import and use the sync hook
   const { data: radioState } = trpc.radio.getState.useQuery(undefined, {
