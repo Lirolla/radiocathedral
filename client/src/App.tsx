@@ -268,30 +268,23 @@ function App() {
 
       if (playlist.length === 0) return;
 
-      // Calculate elapsed time
+      // Calculate elapsed time for CURRENT song only
       const now = new Date();
       const songStartTime = new Date(radioState.songStartedAt);
       const elapsedSeconds = Math.floor((now.getTime() - songStartTime.getTime()) / 1000);
 
-      let currentIndex = radioState.currentSongIndex;
-      let currentPosition = elapsedSeconds;
+      const currentIndex = radioState.currentSongIndex;
+      const currentSong = playlist[currentIndex];
 
-      // Advance through songs if needed
-      while (currentIndex < playlist.length) {
-        const song = playlist[currentIndex];
-        if (!song.duration || currentPosition < song.duration) {
-          break;
-        }
-        currentPosition -= song.duration;
-        currentIndex++;
+      // Only sync if we're within the song duration
+      // Don't auto-advance - let the natural player flow handle that
+      if (currentSong && currentSong.duration) {
+        const currentPosition = Math.min(elapsedSeconds, currentSong.duration - 1);
+        handleSync(currentIndex, Math.max(0, currentPosition), playlist);
+      } else {
+        // No duration info, just sync index
+        handleSync(currentIndex, 0, playlist);
       }
-
-      if (currentIndex >= playlist.length) {
-        currentIndex = 0;
-        currentPosition = 0;
-      }
-
-      handleSync(currentIndex, Math.max(0, currentPosition), playlist);
     } catch (error) {
       console.error('[RadioSync] Error:', error);
     }
@@ -459,6 +452,7 @@ function App() {
 
   // --- MIXER LOGIC (WITH GLOBAL SYNC) ---
   const initPlaylistMutation = trpc.radio.initState.useMutation();
+  const updateStateMutation = trpc.radio.updateState.useMutation();
 
   const playPlaylistMixed = async (playlistId: string, silent: boolean = false) => {
     const targetPlaylist = playlists.find(p => p.id === playlistId);
@@ -606,6 +600,17 @@ function App() {
 
     if (nextIndex !== -1) {
         const justFinishedSong = playerQueue[currentSongIndex];
+        
+        // Update backend with new song index (for global sync)
+        if (isAutoDJ && !guestMode.active && currentView === 'public_site') {
+          updateStateMutation.mutate({
+            currentSongIndex: nextIndex,
+            songStartedAt: new Date(),
+            currentPosition: 0,
+            isPlaying: 1,
+          });
+        }
+        
         if (isAutoDJ && justFinishedSong && !justFinishedSong.isJingle) {
             const newCount = songsPlayed + 1;
             setSongsPlayed(newCount);

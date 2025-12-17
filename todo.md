@@ -32,3 +32,4 @@
 - [x] Implementar sistema de rádio sincronizada (todos ouvem a mesma música ao mesmo tempo)
 - [x] Adicionar transição suave entre programas (espera música terminar antes de mudar)
 - [x] Criar relógio global da rádio no banco de dados
+- [x] Corrigir bug: música pula para próxima antes de terminar (sincronização muito agressiva)
