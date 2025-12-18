@@ -391,10 +391,9 @@ function App() {
     }
     const validSongs = targetPlaylist.songs.filter(s => s.url);
     
-    const shuffledSongs = [...validSongs].sort(() => Math.random() - 0.5);
     console.log(`[AutoDJ] Iniciando playlist: ${targetPlaylist.name}`);
     
-    setPlayerQueue(shuffledSongs);
+    setPlayerQueue(validSongs);
     setCurrentSongIndex(0);
     setIsAutoDJ(true);
     setSongsPlayed(0);
