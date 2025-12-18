@@ -73,19 +73,6 @@ export const uploadSongToR2 = async (file: File, folderName: string = "Geral"): 
     ? displayName.split('-').map(s => s.trim()) 
     : ["Desconhecido", displayName];
   
-  // Calcular duração do áudio
-  let duration = 0;
-  try {
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-    const arrayBuffer = await file.arrayBuffer();
-    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer.slice(0));
-    duration = Math.floor(audioBuffer.duration);
-    audioContext.close();
-    console.log(`[R2] Duração calculada: ${duration}s`);
-  } catch (error) {
-    console.warn('[R2] Não foi possível calcular duração:', error);
-  }
-  
   // Caminho Final: Pasta/Arquivo
   // Não usamos timestamp no prefixo se quisermos nomes limpos, mas cuidado com duplicatas.
   // Vamos usar timestamp apenas se necessário, mas o usuário pediu para "gravar na pasta".
@@ -120,7 +107,7 @@ export const uploadSongToR2 = async (file: File, folderName: string = "Geral"): 
         title: title || displayName,
         artist: artist || "Artista Desconhecido",
         url: publicUrl,
-        duration: duration,
+        duration: 0,
         file: undefined
     };
 

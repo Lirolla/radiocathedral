@@ -36,5 +36,3 @@
 - [x] Adicionar contador de tempo total na tela de playlist (ex: "Total: 12 músicas • 1h 23min")
 - [x] CRÍTICO: Sincronização entrando em loop infinito (músicas ficam mudando sem parar)
 - [x] Remover sistema de sincronização global (causando loop) - manter apenas transição suave
-- [x] Contador de tempo mostra "--:--" porque músicas não têm duração calculada
-- [x] Ainda está embaralhando músicas - remover embaralhamento para tocar na ordem da lista
