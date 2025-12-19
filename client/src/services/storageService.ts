@@ -42,7 +42,7 @@ const sanitizeString = (str: string) => {
 // 1. CRIAR PASTA (Simulada no R2)
 export const createFolderInR2 = async (folderName: string) => {
     const safeFolderName = sanitizeString(folderName);
-    const key = `${safeFolderName}/`; // Termina com / para indicar pasta
+    const key = `radiotocai/${safeFolderName}/`; // Termina com / para indicar pasta
     
     try {
         const client = getR2Client();
@@ -76,7 +76,7 @@ export const uploadSongToR2 = async (file: File, folderName: string = "Geral"): 
   // Caminho Final: Pasta/Arquivo
   // Não usamos timestamp no prefixo se quisermos nomes limpos, mas cuidado com duplicatas.
   // Vamos usar timestamp apenas se necessário, mas o usuário pediu para "gravar na pasta".
-  const storageKey = `${safeFolderName}/${safeFileName}`;
+  const storageKey = `radiotocai/${safeFolderName}/${safeFileName}`;
 
   try {
     const client = getR2Client();
