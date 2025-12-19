@@ -34,3 +34,6 @@
 - [x] Erro de CORS no upload - adicionar prefixo /radiotocai nas chaves de upload do R2
 - [x] Corrigir erro de CORS no upload de músicas - ajustar AllowedHeaders no bucket R2
 - [x] Atualizar Secret Access Key correta do R2 (estava com caractere errado)
+- [x] Corrigir formato de requisição tRPC no storageService (erro BAD_REQUEST)
+- [x] Reverter para upload direto do navegador (código original) com credenciais corretas
+- [x] Consertar chamadas do frontend para usar backend tRPC corretamente
