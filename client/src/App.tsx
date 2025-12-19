@@ -1,6 +1,5 @@
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { trpc } from './lib/trpc';
+import React, { useState, useEffect, useRef } from 'react';
 import { signInAnonymously } from "firebase/auth";
 import { auth } from "./services/firebaseConfig"; // Importar auth
 import Sidebar from './components/Sidebar';
@@ -211,7 +210,6 @@ function App() {
   const [songHistory, setSongHistory] = useState<Song[]>([]);
   
   const [currentScheduleId, setCurrentScheduleId] = useState<string | null>(null);
-  const [pendingScheduleChange, setPendingScheduleChange] = useState<{ scheduleId: string | null; playlistId: string } | null>(null);
 
   const jinglePlaylist = playlists.find(p => p.type === 'jingle' && p.ownerId === 'station');
   const commercialPlaylist = playlists.find(p => p.type === 'commercial' && p.ownerId === 'station');
@@ -219,8 +217,6 @@ function App() {
 
   const currentSong = currentSongIndex >= 0 && currentSongIndex < playerQueue.length ? playerQueue[currentSongIndex] : null;
   const nextSong = currentSongIndex >= 0 && currentSongIndex < playerQueue.length - 1 ? playerQueue[currentSongIndex + 1] : (isAutoDJ && playerQueue.length > 0 ? playerQueue[0] : null);
-
-  // Radio sync removed - using simple local playback
 
   // --- UPDATE MEDIA SESSION (iOS LOCKSCREEN) ---
   useEffect(() => {
@@ -333,15 +329,7 @@ function App() {
   };
 
   const handleEnded = () => {
-    // Check if there's a pending schedule change
-    if (pendingScheduleChange) {
-      console.log('[Schedule] Applying pending schedule change after song ended');
-      setCurrentScheduleId(pendingScheduleChange.scheduleId);
-      playPlaylistMixed(pendingScheduleChange.playlistId);
-      setPendingScheduleChange(null);
-    } else {
-      setTimeout(() => { playNext(); }, 1000);
-    }
+    setTimeout(() => { playNext(); }, 1000);
   };
 
   // --- DB WRAPPERS ---
@@ -383,22 +371,21 @@ function App() {
   };
 
   // --- MIXER LOGIC ---
-  const playPlaylistMixed = async (playlistId: string, silent: boolean = false) => {
+  const playPlaylistMixed = (playlistId: string, silent: boolean = false) => {
     const targetPlaylist = playlists.find(p => p.id === playlistId);
     if (!targetPlaylist || targetPlaylist.songs.length === 0) {
       if(!silent) console.warn("AutoDJ: Tentou tocar playlist vazia.", playlistId);
       return;
     }
     const validSongs = targetPlaylist.songs.filter(s => s.url);
-    
     const shuffledSongs = [...validSongs].sort(() => Math.random() - 0.5);
+
     console.log(`[AutoDJ] Iniciando playlist: ${targetPlaylist.name}`);
-    
     setPlayerQueue(shuffledSongs);
     setCurrentSongIndex(0);
     setIsAutoDJ(true);
     setSongsPlayed(0);
-    setIsPlaying(true);
+    setIsPlaying(true); // FORCE START
   };
 
   // --- SCHEDULER & AUTODJ ENGINE ---
@@ -425,48 +412,25 @@ function App() {
       if (activeItem) {
           const item = activeItem as ScheduleItem;
           if (forceUpdate || currentScheduleId !== item.id) {
-              if (currentSong && isPlaying) {
-                  // Schedule change for after current song ends (smooth transition)
-                  console.log(`[AutoDJ] Novo horário detectado! Agendando mudança para: ${item.time} (após música atual)`);
-                  setPendingScheduleChange({ scheduleId: item.id, playlistId: item.playlistId });
-              } else {
-                  // No song playing, change immediately
-                  console.log(`[AutoDJ] Novo horário detectado! Mudando para: ${item.time}`);
-                  setCurrentScheduleId(item.id);
-                  playPlaylistMixed(item.playlistId);
-              }
+              console.log(`[AutoDJ] Novo horário detectado! Mudando para: ${item.time}`);
+              setCurrentScheduleId(item.id);
+              playPlaylistMixed(item.playlistId);
           } else if (playerQueue.length === 0 && isAutoDJ) {
               console.log("[AutoDJ] Fila vazia durante programa agendado. Reiniciando lista...");
               playPlaylistMixed(item.playlistId);
           }
       } else {
           if (forceUpdate || currentScheduleId !== null || playerQueue.length === 0) {
-              if (currentSong && isPlaying) {
-                  // Schedule change for after current song ends
-                  console.log("[AutoDJ] Nenhum programa agendado. Agendando Rotação Geral (após música atual)...");
-                  const musicPlaylists = playlists.filter(p => p.type === 'music' && p.songs.length > 0 && p.id !== 'backup-playlist-default');
-                  if (musicPlaylists.length > 0) {
-                      const randomPl = musicPlaylists[Math.floor(Math.random() * musicPlaylists.length)];
-                      setPendingScheduleChange({ scheduleId: null, playlistId: randomPl.id });
-                  } else {
-                      const backup = playlists.find(p => p.id === 'backup-playlist-default');
-                      if (backup && backup.songs.length > 0) {
-                          setPendingScheduleChange({ scheduleId: null, playlistId: backup.id });
-                      }
-                  }
+              console.log("[AutoDJ] Nenhum programa agendado agora. Iniciando Rotação Geral...");
+              setCurrentScheduleId(null);
+              
+              const musicPlaylists = playlists.filter(p => p.type === 'music' && p.songs.length > 0 && p.id !== 'backup-playlist-default');
+              if (musicPlaylists.length > 0) {
+                  const randomPl = musicPlaylists[Math.floor(Math.random() * musicPlaylists.length)];
+                  playPlaylistMixed(randomPl.id, true);
               } else {
-                  // No song playing, change immediately
-                  console.log("[AutoDJ] Nenhum programa agendado agora. Iniciando Rotação Geral...");
-                  setCurrentScheduleId(null);
-                  
-                  const musicPlaylists = playlists.filter(p => p.type === 'music' && p.songs.length > 0 && p.id !== 'backup-playlist-default');
-                  if (musicPlaylists.length > 0) {
-                      const randomPl = musicPlaylists[Math.floor(Math.random() * musicPlaylists.length)];
-                      playPlaylistMixed(randomPl.id, true);
-                  } else {
-                      const backup = playlists.find(p => p.id === 'backup-playlist-default');
-                      if (backup && backup.songs.length > 0) playPlaylistMixed(backup.id, true);
-                  }
+                  const backup = playlists.find(p => p.id === 'backup-playlist-default');
+                  if (backup && backup.songs.length > 0) playPlaylistMixed(backup.id, true);
               }
           }
       }
@@ -509,7 +473,6 @@ function App() {
 
     if (nextIndex !== -1) {
         const justFinishedSong = playerQueue[currentSongIndex];
-        
         if (isAutoDJ && justFinishedSong && !justFinishedSong.isJingle) {
             const newCount = songsPlayed + 1;
             setSongsPlayed(newCount);

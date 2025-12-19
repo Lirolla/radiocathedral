@@ -654,24 +654,8 @@ const PlaylistManager: React.FC<PlaylistManagerProps> = ({
             </table>
          )}
       </div>
-      <div className="mt-4 text-sm text-gray-400 text-center font-medium">
-         {(() => {
-           const totalSongs = activePlaylist?.songs.length || 0;
-           const totalSeconds = activePlaylist?.songs.reduce((sum, song) => sum + (song.duration || 0), 0) || 0;
-           const hours = Math.floor(totalSeconds / 3600);
-           const minutes = Math.floor((totalSeconds % 3600) / 60);
-           
-           let timeStr = '';
-           if (hours > 0) {
-             timeStr = `${hours}h ${minutes}min`;
-           } else if (minutes > 0) {
-             timeStr = `${minutes}min`;
-           } else {
-             timeStr = `${totalSeconds}s`;
-           }
-           
-           return `Total: ${totalSongs} música${totalSongs !== 1 ? 's' : ''} • ${timeStr}`;
-         })()}
+      <div className="mt-4 text-xs text-gray-500 text-center">
+         Total: {activePlaylist?.songs.length} arquivos.
       </div>
     </div>
   );

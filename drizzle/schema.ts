@@ -25,27 +25,4 @@ export const users = mysqlTable("users", {
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
-/**
- * Radio state table - stores the global state of the radio station
- * This ensures all listeners hear the same song at the same time
- */
-export const radioState = mysqlTable("radioState", {
-  id: int("id").autoincrement().primaryKey(),
-  /** Current song index in the global playlist */
-  currentSongIndex: int("currentSongIndex").notNull().default(0),
-  /** Current playback position in seconds */
-  currentPosition: int("currentPosition").notNull().default(0),
-  /** Timestamp when the current song started playing */
-  songStartedAt: timestamp("songStartedAt").notNull().defaultNow(),
-  /** ID of the current playlist being played */
-  currentPlaylistId: varchar("currentPlaylistId", { length: 64 }),
-  /** Serialized array of song IDs in play order (to avoid re-shuffling) */
-  playlistOrder: text("playlistOrder"),
-  /** Whether the radio is currently playing */
-  isPlaying: int("isPlaying").notNull().default(1), // 1 = playing, 0 = paused
-  /** Last update timestamp */
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-});
-
-export type RadioState = typeof radioState.$inferSelect;
-export type InsertRadioState = typeof radioState.$inferInsert;
+// TODO: Add your tables here

@@ -28,11 +28,4 @@
 - [x] Logo não aparece no player do iOS (lockscreen) - precisa corrigir
 - [x] Alterar slogan de "Sistema de Rádio Online" para "RadioTocai - tocando nossa época"
 - [x] Implementar retomada automática da reprodução quando sair de apps que interrompem áudio (Instagram, TikTok, etc.)
-- [x] Remover embaralhamento individual (cada pessoa ouve diferente)
-- [x] Implementar sistema de rádio sincronizada (todos ouvem a mesma música ao mesmo tempo)
-- [x] Adicionar transição suave entre programas (espera música terminar antes de mudar)
-- [x] Criar relógio global da rádio no banco de dados
-- [x] Corrigir bug: música pula para próxima antes de terminar (sincronização muito agressiva)
-- [x] Adicionar contador de tempo total na tela de playlist (ex: "Total: 12 músicas • 1h 23min")
-- [x] CRÍTICO: Sincronização entrando em loop infinito (músicas ficam mudando sem parar)
-- [x] Remover sistema de sincronização global (causando loop) - manter apenas transição suave
+- [x] Substituir logo do favicon e player mobile pelo novo logo (radio_tocai_logo_v4.png)

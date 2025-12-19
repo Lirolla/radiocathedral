@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, radioState, RadioState } from "../drizzle/schema";
+import { InsertUser, users } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -74,88 +74,6 @@ export async function upsertUser(user: InsertUser): Promise<void> {
   } catch (error) {
     console.error("[Database] Failed to upsert user:", error);
     throw error;
-  }
-}
-
-// ========== RADIO STATE FUNCTIONS ==========
-
-export async function getRadioState(): Promise<RadioState | null> {
-  const db = await getDb();
-  if (!db) {
-    console.warn("[Database] Cannot get radio state: database not available");
-    return null;
-  }
-
-  try {
-    const result = await db.select().from(radioState).limit(1);
-    return result[0] || null;
-  } catch (error) {
-    console.error("[Database] Failed to get radio state:", error);
-    return null;
-  }
-}
-
-export async function updateRadioState(updates: Partial<RadioState>): Promise<RadioState | null> {
-  const db = await getDb();
-  if (!db) {
-    console.warn("[Database] Cannot update radio state: database not available");
-    return null;
-  }
-
-  try {
-    const current = await getRadioState();
-    if (!current) {
-      console.warn("[Database] No radio state found to update");
-      return null;
-    }
-
-    await db.update(radioState)
-      .set({ ...updates, updatedAt: new Date() })
-      .where(eq(radioState.id, current.id));
-
-    return await getRadioState();
-  } catch (error) {
-    console.error("[Database] Failed to update radio state:", error);
-    return null;
-  }
-}
-
-export async function initRadioState(playlistId: string, playlistOrder: string): Promise<RadioState | null> {
-  const db = await getDb();
-  if (!db) {
-    console.warn("[Database] Cannot init radio state: database not available");
-    return null;
-  }
-
-  try {
-    // Check if state already exists
-    const existing = await getRadioState();
-    if (existing) {
-      // Update existing state
-      return await updateRadioState({
-        currentPlaylistId: playlistId,
-        playlistOrder,
-        currentSongIndex: 0,
-        currentPosition: 0,
-        songStartedAt: new Date(),
-        isPlaying: 1,
-      });
-    }
-
-    // Create new state
-    await db.insert(radioState).values({
-      currentPlaylistId: playlistId,
-      playlistOrder,
-      currentSongIndex: 0,
-      currentPosition: 0,
-      songStartedAt: new Date(),
-      isPlaying: 1,
-    });
-
-    return await getRadioState();
-  } catch (error) {
-    console.error("[Database] Failed to init radio state:", error);
-    return null;
   }
 }
 
