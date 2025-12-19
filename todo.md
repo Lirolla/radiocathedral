@@ -29,3 +29,5 @@
 - [x] Alterar slogan de "Sistema de Rádio Online" para "RadioTocai - tocando nossa época"
 - [x] Implementar retomada automática da reprodução quando sair de apps que interrompem áudio (Instagram, TikTok, etc.)
 - [x] Substituir logo do favicon e player mobile pelo novo logo (radio_tocai_logo_v4.png)
+- [ ] Logo do header (canto superior esquerdo) está usando logo antigo - substituir pelo novo logo colorido
+- [x] Atualizar credenciais da API do Cloudflare R2 (novas chaves fornecidas)

@@ -4,8 +4,8 @@ import { S3Client, PutObjectCommand, ListObjectsV2Command } from "@aws-sdk/clien
 
 // --- CONFIGURAÇÃO R2 (Cloudflare) ---
 const R2_ACCOUNT_ID = "023a0bad3f17632316cd10358db2201f";
-const R2_ACCESS_KEY_ID = "7f83d8f5d862d11328ccc8dd050e58df";
-const R2_SECRET_ACCESS_KEY = "44ee6322e4bf5351b52b3ea1fdd4bc6324f26b2fff1956a376fcc5ac58f6bac0";
+const R2_ACCESS_KEY_ID = "f24a769d6c501cc020b97ffc2de7c8ba";
+const R2_SECRET_ACCESS_KEY = "5d26e3f6400a920739e881f978687ef9a4257a1b01c1cd945ad488d1be2c3159";
 
 // IMPORTANTE: Buckets S3/R2 geralmente são Case Sensitive ou Lowercase.
 // Tente usar tudo minúsculo se estiver dando erro de 'Bucket Not Found'.
