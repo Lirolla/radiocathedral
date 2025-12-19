@@ -32,3 +32,5 @@
 - [ ] Logo do header (canto superior esquerdo) está usando logo antigo - substituir pelo novo logo colorido
 - [x] Atualizar credenciais da API do Cloudflare R2 (novas chaves fornecidas)
 - [x] Erro de CORS no upload - adicionar prefixo /radiotocai nas chaves de upload do R2
+- [x] Corrigir erro de CORS no upload de músicas - ajustar AllowedHeaders no bucket R2
+- [x] Atualizar Secret Access Key correta do R2 (estava com caractere errado)

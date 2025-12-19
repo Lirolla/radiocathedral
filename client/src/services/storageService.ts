@@ -1,128 +1,117 @@
 
 import { Song } from '../types';
-import { S3Client, PutObjectCommand, ListObjectsV2Command } from "@aws-sdk/client-s3";
 
-// --- CONFIGURAÇÃO R2 (Cloudflare) ---
-const R2_ACCOUNT_ID = "023a0bad3f17632316cd10358db2201f";
-const R2_ACCESS_KEY_ID = "f24a769d6c501cc020b97ffc2de7c8ba";
-const R2_SECRET_ACCESS_KEY = "5d26e3f6400a920739e881f978687ef9a4257a1b01c1cd945ad488d1be2c3159";
-
-// IMPORTANTE: Buckets S3/R2 geralmente são Case Sensitive ou Lowercase.
-// Tente usar tudo minúsculo se estiver dando erro de 'Bucket Not Found'.
-const R2_BUCKET_NAME = "radiotocai"; 
-
-// URL Pública
-const PUBLIC_R2_DOMAIN = "https://musica.radiotocai.com"; 
-
-let r2Client: S3Client | null = null;
-
-const getR2Client = () => {
-  if (!r2Client) {
-    r2Client = new S3Client({
-      region: "auto",
-      endpoint: `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
-      credentials: {
-        accessKeyId: R2_ACCESS_KEY_ID,
-        secretAccessKey: R2_SECRET_ACCESS_KEY,
-      },
-      forcePathStyle: true 
-    });
-  }
-  return r2Client;
+// Função auxiliar para converter File para Base64
+const fileToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => {
+      const result = reader.result as string;
+      // Remove o prefixo "data:audio/mpeg;base64," para enviar apenas o base64
+      const base64 = result.split(',')[1];
+      resolve(base64);
+    };
+    reader.onerror = error => reject(error);
+  });
 };
 
-// Função auxiliar para limpar nomes
-const sanitizeString = (str: string) => {
-  return str
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "") // Remove acentos
-    .replace(/[^a-zA-Z0-9.\-_]/g, "_"); // Substitui espaços por _
+// Função auxiliar para calcular duração do áudio
+const getAudioDuration = (file: File): Promise<number> => {
+  return new Promise((resolve) => {
+    const audio = new Audio();
+    audio.addEventListener('loadedmetadata', () => {
+      resolve(Math.floor(audio.duration));
+    });
+    audio.addEventListener('error', () => {
+      console.warn('[Audio] Não foi possível calcular duração, usando 0');
+      resolve(0);
+    });
+    audio.src = URL.createObjectURL(file);
+  });
+};
+
+// Helper para chamar API tRPC
+const callTRPC = async (path: string, input: any, method: 'query' | 'mutation') => {
+  const url = method === 'query' 
+    ? `/api/trpc/${path}?input=${encodeURIComponent(JSON.stringify(input))}`
+    : `/api/trpc/${path}`;
+  
+  const options: RequestInit = method === 'mutation' 
+    ? {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(input),
+      }
+    : { method: 'GET' };
+  
+  const response = await fetch(url, options);
+  
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`API Error: ${error}`);
+  }
+  
+  const data = await response.json();
+  return data.result?.data || data.result;
 };
 
 // 1. CRIAR PASTA (Simulada no R2)
 export const createFolderInR2 = async (folderName: string) => {
-    const safeFolderName = sanitizeString(folderName);
-    const key = `radiotocai/${safeFolderName}/`; // Termina com / para indicar pasta
+  try {
+    console.log(`[R2] Criando pasta: ${folderName}`);
     
-    try {
-        const client = getR2Client();
-        console.log(`[R2] Criando pasta: ${key}`);
-        
-        await client.send(new PutObjectCommand({
-            Bucket: R2_BUCKET_NAME,
-            Key: key,
-            Body: new Uint8Array(0) // Arquivo vazio
-        }));
-        console.log(`[R2] Pasta '${folderName}' criada com sucesso.`);
-        return true;
-    } catch (error: any) {
-        console.error("[R2] Erro ao criar pasta:", error);
-        // Não lançamos erro fatal aqui para não travar a UI, apenas logamos
-        return false;
-    }
+    const result = await callTRPC('r2.createFolder', { folderName }, 'mutation');
+    
+    console.log(`[R2] Pasta '${folderName}' criada com sucesso.`);
+    return result.success;
+  } catch (error: any) {
+    console.error("[R2] Erro ao criar pasta:", error);
+    return false;
+  }
 };
 
-// 2. UPLOAD DE MÚSICA
+// 2. UPLOAD DE MÚSICA (via Backend)
 export const uploadSongToR2 = async (file: File, folderName: string = "Geral"): Promise<Song> => {
-  const safeFolderName = sanitizeString(folderName);
-  const safeFileName = sanitizeString(file.name);
-  
-  // Metadados
-  const displayName = file.name.replace(/\.[^/.]+$/, "");
-  const [artist, title] = displayName.includes('-') 
-    ? displayName.split('-').map(s => s.trim()) 
-    : ["Desconhecido", displayName];
-  
-  // Caminho Final: Pasta/Arquivo
-  // Não usamos timestamp no prefixo se quisermos nomes limpos, mas cuidado com duplicatas.
-  // Vamos usar timestamp apenas se necessário, mas o usuário pediu para "gravar na pasta".
-  const storageKey = `radiotocai/${safeFolderName}/${safeFileName}`;
-
   try {
-    const client = getR2Client();
-
-    // Converter para buffer seguro
-    const arrayBuffer = await file.arrayBuffer();
-    const uint8Array = new Uint8Array(arrayBuffer);
-
-    console.log(`[R2] Iniciando upload...`);
-    console.log(`   Bucket: ${R2_BUCKET_NAME}`);
-    console.log(`   Key: ${storageKey}`);
-    console.log(`   Tamanho: ${uint8Array.byteLength} bytes`);
+    console.log(`[R2] Iniciando upload de: ${file.name}`);
+    console.log(`   Pasta: ${folderName}`);
+    console.log(`   Tamanho: ${file.size} bytes`);
     
-    const command = new PutObjectCommand({
-        Bucket: R2_BUCKET_NAME,
-        Key: storageKey,
-        Body: uint8Array,
-        ContentType: file.type || 'audio/mpeg',
-    });
-
-    await client.send(command);
+    // Converter arquivo para base64
+    const fileBase64 = await fileToBase64(file);
     
-    const publicUrl = `${PUBLIC_R2_DOMAIN}/${storageKey}`;
-    console.log("[R2] Upload OK! URL:", publicUrl);
+    // Calcular duração do áudio
+    const duration = await getAudioDuration(file);
+    
+    // Enviar para o backend
+    const result = await callTRPC('r2.uploadSong', {
+      fileBase64: fileBase64,
+      fileName: file.name,
+      folderName: folderName,
+      contentType: file.type || 'audio/mpeg',
+    }, 'mutation');
+    
+    console.log("[R2] Upload OK! URL:", result.url);
+    
+    // Extrair artista e título do nome do arquivo
+    const displayName = file.name.replace(/\.[^/.]+$/, "");
+    const [artist, title] = displayName.includes('-') 
+      ? displayName.split('-').map(s => s.trim()) 
+      : ["Desconhecido", displayName];
     
     return {
-        id: crypto.randomUUID(),
-        title: title || displayName,
-        artist: artist || "Artista Desconhecido",
-        url: publicUrl,
-        duration: 0,
-        file: undefined
+      id: crypto.randomUUID(),
+      title: title || displayName,
+      artist: artist || "Artista Desconhecido",
+      url: result.url,
+      duration: duration,
+      file: undefined
     };
 
   } catch (error: any) {
     console.error("[R2] Erro Fatal:", error);
-    let msg = `Erro no envio: ${error.message}`;
-
-    if (error.name === 'TypeError' && (error.message.includes('fetch') || error.message.includes('Network'))) {
-        msg = "ERRO DE CORS/REDE: O Cloudflare bloqueou a conexão. Verifique se o bucket permite 'AllowedHeaders': ['*'] e método PUT.";
-    } else if (error.$metadata?.httpStatusCode === 404) {
-        msg = `ERRO 404: Bucket '${R2_BUCKET_NAME}' não existe. Verifique o nome no código (minúsculas/maiúsculas).`;
-    } else if (error.$metadata?.httpStatusCode === 403) {
-        msg = "ERRO 403: Acesso Negado. Suas chaves de API podem estar erradas ou sem permissão de escrita.";
-    }
-
+    const msg = `Erro no envio: ${error.message || 'Erro desconhecido'}`;
     alert(msg);
     throw error;
   }
@@ -130,47 +119,25 @@ export const uploadSongToR2 = async (file: File, folderName: string = "Geral"): 
 
 // 3. SINCRONIZAR PASTA (RECUPERAR ARQUIVOS EXISTENTES)
 export const listFilesFromR2 = async (folderName: string): Promise<Song[]> => {
-    const safeFolder = sanitizeString(folderName);
-    const prefix = `${safeFolder}/`;
-    const client = getR2Client();
+  try {
+    console.log(`[R2 Sync] Buscando arquivos em: ${folderName}`);
+    
+    const files = await callTRPC('r2.listFiles', { folderName }, 'query');
+    
+    console.log(`[R2 Sync] Encontrados ${files.length} arquivos.`);
+    
+    return files.map((file: any) => ({
+      id: crypto.randomUUID(),
+      title: file.title,
+      artist: file.artist,
+      url: file.url,
+      duration: 0,
+      isJingle: false
+    }));
 
-    try {
-        console.log(`[R2 Sync] Buscando arquivos em: ${prefix}`);
-        const command = new ListObjectsV2Command({
-            Bucket: R2_BUCKET_NAME,
-            Prefix: prefix
-        });
-
-        const response = await client.send(command);
-        const files = response.Contents || [];
-        console.log(`[R2 Sync] Encontrados ${files.length} objetos.`);
-
-        return files
-            .filter(file => file.Key && !file.Key.endsWith('/')) // Ignora a própria pasta (objetos terminados em /)
-            .map(file => {
-                const key = file.Key!;
-                const fileName = key.split('/').pop() || "Desconhecido";
-                // Formatação simples do nome para exibição (remove extensão e underlines)
-                const displayName = fileName.replace(/\.[^/.]+$/, "").replace(/_/g, " ");
-                
-                // Tenta extrair Artista - Titulo se o nome do arquivo tiver hifen
-                const [artist, title] = displayName.includes('-') 
-                    ? displayName.split('-').map(s => s.trim()) 
-                    : ["Desconhecido", displayName];
-
-                return {
-                    id: crypto.randomUUID(), // Gera ID novo, já que estamos recuperando
-                    title: title || displayName,
-                    artist: artist || "Recuperado do R2",
-                    url: `${PUBLIC_R2_DOMAIN}/${key}`,
-                    duration: 0,
-                    isJingle: false
-                };
-            });
-
-    } catch (error: any) {
-        console.error("[R2 Sync] Erro ao listar arquivos:", error);
-        alert(`Erro ao sincronizar pasta R2: ${error.message}`);
-        return [];
-    }
+  } catch (error: any) {
+    console.error("[R2 Sync] Erro ao listar arquivos:", error);
+    alert(`Erro ao sincronizar pasta R2: ${error.message}`);
+    return [];
+  }
 };
