@@ -412,7 +412,7 @@ function App() {
 
       if (activeItem) {
           const item = activeItem as ScheduleItem;
-          if (forceUpdate || currentScheduleId !== item.id) {
+          if (forceUpdate || (currentScheduleId !== item.id && pendingScheduleId !== item.id)) {
               // Se está tocando música, marca como pendente ao invés de trocar imediatamente
               if (isPlaying && currentSong && !forceUpdate) {
                   console.log(`[AutoDJ] Novo horário detectado: ${item.time}. Aguardando música terminar...`);
@@ -420,6 +420,7 @@ function App() {
               } else {
                   console.log(`[AutoDJ] Novo horário detectado! Mudando para: ${item.time}`);
                   setCurrentScheduleId(item.id);
+                  setPendingScheduleId(null);
                   playPlaylistMixed(item.playlistId);
               }
           } else if (playerQueue.length === 0 && isAutoDJ) {
@@ -435,6 +436,7 @@ function App() {
               } else {
                   console.log("[AutoDJ] Nenhum programa agendado agora. Iniciando Rotação Geral...");
                   setCurrentScheduleId(null);
+                  setPendingScheduleId(null);
                   
                   const musicPlaylists = playlists.filter(p => p.type === 'music' && p.songs.length > 0 && p.id !== 'backup-playlist-default');
                   if (musicPlaylists.length > 0) {
