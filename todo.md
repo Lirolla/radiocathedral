@@ -37,3 +37,4 @@
 - [x] Corrigir formato de requisição tRPC no storageService (erro BAD_REQUEST)
 - [x] Reverter para upload direto do navegador (código original) com credenciais corretas
 - [x] Consertar chamadas do frontend para usar backend tRPC corretamente
+- [x] Corrigir transição entre programas - esperar música terminar antes de trocar
