@@ -42,3 +42,4 @@
 - [x] Corrigir sistema de troca de músicas (às vezes para, às vezes corta bruscamente)
 - [x] Adicionar ícone de coração piscando no menu (entre Contato e relógio)
 - [x] Remover seção "Histórias de Amor" da home (manter só na página dedicada)
+- [x] Corrigir bug: sistema não carrega playlist na transição (estava usando ID do schedule ao invés do playlistId)

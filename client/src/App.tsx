@@ -377,7 +377,11 @@ function App() {
 
   // --- MIXER LOGIC ---
   const playPlaylistMixed = (playlistId: string, silent: boolean = false) => {
+    console.log('[playPlaylistMixed] Buscando playlist ID:', playlistId);
+    console.log('[playPlaylistMixed] Total de playlists disponíveis:', playlists.length);
     const targetPlaylist = playlists.find(p => p.id === playlistId);
+    console.log('[playPlaylistMixed] Playlist encontrada:', targetPlaylist ? targetPlaylist.name : 'NÃO ENCONTRADA');
+    console.log('[playPlaylistMixed] Número de músicas:', targetPlaylist ? targetPlaylist.songs.length : 0);
     if (!targetPlaylist || targetPlaylist.songs.length === 0) {
       if(!silent) console.warn("AutoDJ: Tentou tocar playlist vazia.", playlistId);
       return;
@@ -491,7 +495,14 @@ function App() {
                 if (backup && backup.songs.length > 0) playPlaylistMixed(backup.id, true);
             }
         } else {
-            playPlaylistMixed(pendingScheduleId);
+            // Buscar o playlistId do schedule item
+            const scheduleItem = schedule.find(s => s.id === pendingScheduleId);
+            if (scheduleItem) {
+                console.log('[PlayNext] Schedule item encontrado:', scheduleItem.time, '- Playlist ID:', scheduleItem.playlistId);
+                playPlaylistMixed(scheduleItem.playlistId);
+            } else {
+                console.error('[PlayNext] Schedule item não encontrado para ID:', pendingScheduleId);
+            }
         }
         return;
     }
