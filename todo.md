@@ -39,3 +39,6 @@
 - [x] Consertar chamadas do frontend para usar backend tRPC corretamente
 - [x] Corrigir transição entre programas - esperar música terminar antes de trocar
 - [x] Corrigir bug: transição trava quando música termina (não troca de programa)
+- [x] Corrigir sistema de troca de músicas (às vezes para, às vezes corta bruscamente)
+- [x] Adicionar ícone de coração piscando no menu (entre Contato e relógio)
+- [x] Remover seção "Histórias de Amor" da home (manter só na página dedicada)

@@ -42,7 +42,7 @@ const PublicSite: React.FC<PublicSiteProps> = ({
   playlists = []
 }) => {
   // Classic Tab State (For Template 1)
-  const [activeTab, setActiveTab] = useState<'home' | 'requests' | 'contact' | 'top10' | 'about' | 'schedule'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'requests' | 'contact' | 'top10' | 'about' | 'schedule' | 'love-story'>('home');
   const [time, setTime] = useState<string>('');
   
   // Login State
@@ -748,6 +748,15 @@ const PublicSite: React.FC<PublicSiteProps> = ({
                     onClick={() => isOnePage ? scrollToSection('contact') : setActiveTab('contact')} 
                     className={`hover:text-white transition-all hover:scale-105 ${!isOnePage && activeTab === 'contact' ? `text-white border-b-2 ${colors.border}` : ''}`}
                 >Contato</button>
+                
+                {/* Botão de Coração Piscando */}
+                <button 
+                    onClick={() => isOnePage ? scrollToSection('love-story') : setActiveTab('love-story')} 
+                    className={`hover:scale-125 transition-all ${!isOnePage && activeTab === 'love-story' ? `scale-125` : ''}`}
+                    title="Histórias de Amor"
+                >
+                    <HeartIcon className="w-6 h-6 text-pink-500 animate-pulse" />
+                </button>
             </div>
 
             <div className="flex items-center gap-4">
@@ -770,17 +779,13 @@ const PublicSite: React.FC<PublicSiteProps> = ({
         {/* TEMPLATE 1: TABS LOGIC */}
         {!isOnePage && (
             <div className="flex flex-col items-center justify-center min-h-[80vh] px-4 pb-20">
-                {activeTab === 'home' && (
-                    <>
-                        {renderHomeHero()}
-                        <div className="mt-12 w-full">{renderLoveStory()}</div>
-                    </>
-                )}
+                {activeTab === 'home' && renderHomeHero()}
                 {activeTab === 'top10' && renderTop10()}
                 {activeTab === 'requests' && renderRequests()}
                 {activeTab === 'schedule' && renderSchedule()}
                 {activeTab === 'about' && renderAbout()}
                 {activeTab === 'contact' && renderContact()}
+                {activeTab === 'love-story' && renderLoveStory()}
             </div>
         )}
 

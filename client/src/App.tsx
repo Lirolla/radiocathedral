@@ -330,7 +330,11 @@ function App() {
   };
 
   const handleEnded = () => {
-    setTimeout(() => { playNext(); }, 1000);
+    console.log('[Player] Música terminou. Chamando playNext em 500ms...');
+    setTimeout(() => { 
+      console.log('[Player] Executando playNext agora...');
+      playNext(); 
+    }, 500);
   };
 
   // --- DB WRAPPERS ---
@@ -470,6 +474,8 @@ function App() {
   };
 
   const playNext = () => {
+    console.log('[PlayNext] Iniciando... pendingScheduleId:', pendingScheduleId, 'queueLength:', playerQueue.length, 'currentIndex:', currentSongIndex);
+    
     // Se tem programa pendente, aplica agora (transição suave)
     if (pendingScheduleId !== null) {
         console.log('[AutoDJ] Aplicando programa pendente após música terminar...');
@@ -507,6 +513,7 @@ function App() {
     }
 
     if (nextIndex !== -1) {
+        console.log('[PlayNext] Próxima música: index', nextIndex);
         const justFinishedSong = playerQueue[currentSongIndex];
         if (isAutoDJ && justFinishedSong && !justFinishedSong.isJingle) {
             const newCount = songsPlayed + 1;
@@ -529,9 +536,11 @@ function App() {
             }
             if (insertionOffset > 0) setPlayerQueue(newQueue);
         }
+        console.log('[PlayNext] Setando index para', nextIndex, 'e isPlaying=true');
         setCurrentSongIndex(nextIndex);
         setIsPlaying(true); 
     } else {
+        console.log('[PlayNext] Sem próxima música. Parando.');
         setIsPlaying(false);
     }
   };
