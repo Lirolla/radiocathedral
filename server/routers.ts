@@ -30,6 +30,12 @@ export const appRouter = router({
         contentType: z.string(),
       }))
       .mutation(async ({ input }) => {
+        console.log('[uploadSong] Input recebido (sem base64):', {
+          fileName: input.fileName,
+          folderName: input.folderName,
+          contentType: input.contentType,
+          base64Length: input.fileBase64?.length || 0
+        });
         // Converter base64 para buffer
         const fileBuffer = Buffer.from(input.fileBase64, 'base64');
         
@@ -49,7 +55,10 @@ export const appRouter = router({
         folderName: z.string(),
       }))
       .mutation(async ({ input }) => {
+        console.log('[createFolder] Input recebido:', JSON.stringify(input, null, 2));
+        console.log('[createFolder] folderName:', input.folderName);
         const success = await createFolderInR2(input.folderName);
+        console.log('[createFolder] Resultado:', success);
         return { success };
       }),
     

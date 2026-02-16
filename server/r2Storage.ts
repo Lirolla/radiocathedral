@@ -1,7 +1,7 @@
 import { S3Client, PutObjectCommand, ListObjectsV2Command } from "@aws-sdk/client-s3";
 
 // Configuração R2 (Cloudflare)
-const R2_ACCOUNT_ID = "023a0bad3f1763231ccd10358db2201f";
+const R2_ACCOUNT_ID = "023a0bad3f17632316cd10358db2201f";
 const R2_ACCESS_KEY_ID = "f24a769d6c501cc020b97ffc2de7c8ba";
 const R2_SECRET_ACCESS_KEY = "5d26e3f6400a920739e881f978687ef9a4257e1b01c1cd945ad488d1be2c3159";
 const R2_BUCKET_NAME = "radiotocai";
