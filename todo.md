@@ -43,3 +43,4 @@
 - [x] Adicionar ícone de coração piscando no menu (entre Contato e relógio)
 - [x] Remover seção "Histórias de Amor" da home (manter só na página dedicada)
 - [x] Corrigir bug: sistema não carrega playlist na transição (estava usando ID do schedule ao invés do playlistId)
+- [x] Corrigir erro 400 Bad Request ao criar pasta no R2 (corrigido formato tRPC batch)

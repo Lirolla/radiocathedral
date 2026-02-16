@@ -52,7 +52,11 @@ export const createFolderInR2 = async (folderName: string): Promise<boolean> => 
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                folderName: safeFolderName
+                "0": {
+                    "json": {
+                        folderName: safeFolderName
+                    }
+                }
             }),
         });
         
@@ -99,10 +103,14 @@ export const uploadSongToR2 = async (file: File, folderName: string = "Geral"): 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-            fileBase64,
-            fileName: safeFileName,
-            folderName: safeFolderName,
-            contentType: file.type || 'audio/mpeg',
+            "0": {
+                "json": {
+                    fileBase64,
+                    fileName: safeFileName,
+                    folderName: safeFolderName,
+                    contentType: file.type || 'audio/mpeg',
+                }
+            }
         }),
     });
     
