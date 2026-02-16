@@ -50,3 +50,4 @@
 - [x] Implementar deleção de pasta no R2 quando apagar no frontend
 - [x] Erro "Upload falhou: resposta inválida do servidor" ao fazer upload de música (corrigido acesso batch response)
 - [x] URL do upload está em data.json.url ao invés de data.url (corrigido)
+- [x] Música apagada do frontend não é deletada do R2

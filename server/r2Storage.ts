@@ -183,3 +183,23 @@ export const deleteFolderFromR2 = async (folderName: string): Promise<boolean> =
     return false;
   }
 };
+
+// Deletar arquivo individual do R2
+export const deleteFileFromR2 = async (fileKey: string): Promise<boolean> => {
+  const client = getR2Client();
+
+  try {
+    console.log(`[R2 Backend] Deletando arquivo: ${fileKey}`);
+    
+    await client.send(new DeleteObjectCommand({
+      Bucket: R2_BUCKET_NAME,
+      Key: fileKey
+    }));
+    
+    console.log(`[R2 Backend] Arquivo '${fileKey}' deletado com sucesso.`);
+    return true;
+  } catch (error: any) {
+    console.error("[R2 Backend] Erro ao deletar arquivo:", error);
+    return false;
+  }
+};

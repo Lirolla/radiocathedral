@@ -3,7 +3,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
 import { z } from "zod";
-import { uploadSongToR2, createFolderInR2, listFilesFromR2, deleteFolderFromR2 } from "./r2Storage";
+import { uploadSongToR2, createFolderInR2, listFilesFromR2, deleteFolderFromR2, deleteFileFromR2 } from "./r2Storage";
 
 export const appRouter = router({
     // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
@@ -82,6 +82,18 @@ export const appRouter = router({
       .query(async ({ input }) => {
         const files = await listFilesFromR2(input.folderName);
         return files;
+      }),
+    
+    // Deletar arquivo individual
+    deleteFile: publicProcedure
+      .input(z.object({
+        fileKey: z.string(),
+      }))
+      .mutation(async ({ input }) => {
+        console.log('[deleteFile] Deletando arquivo:', input.fileKey);
+        const success = await deleteFileFromR2(input.fileKey);
+        console.log('[deleteFile] Resultado:', success);
+        return { success };
       }),
   }),
 });

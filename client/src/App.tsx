@@ -428,9 +428,40 @@ function App() {
       else { alert("Pasta já sincronizada."); }
   };
 
-  const removeSongFromPlaylist = (playlistId: string, songId: string) => {
+  const removeSongFromPlaylist = async (playlistId: string, songId: string) => {
     const playlist = playlists.find(p => p.id === playlistId);
-    if (playlist) savePlaylist({ ...playlist, songs: playlist.songs.filter(s => s.id !== songId) });
+    if (!playlist) return;
+    
+    // Se for pasta de storage, deletar do R2 também
+    if (playlist.kind === 'storage') {
+      const song = playlist.songs.find(s => s.id === songId);
+      if (song?.url) {
+        // Extrair fileKey da URL
+        const urlObj = new URL(song.url);
+        const fileKey = urlObj.pathname.substring(1); // Remove a barra inicial
+        
+        console.log('[removeSong] Deletando do R2:', fileKey);
+        
+        try {
+          const response = await fetch('/api/trpc/r2.deleteFile?batch=1', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ "0": { json: { fileKey } } })
+          });
+          
+          if (!response.ok) {
+            console.error('[removeSong] Erro ao deletar do R2:', response.statusText);
+          } else {
+            console.log('[removeSong] Deletado do R2 com sucesso!');
+          }
+        } catch (error) {
+          console.error('[removeSong] Erro ao deletar do R2:', error);
+        }
+      }
+    }
+    
+    // Remover do banco de dados local
+    savePlaylist({ ...playlist, songs: playlist.songs.filter(s => s.id !== songId) });
   };
 
   const handleUpdateConfig = (newConfig: RadioStationConfig) => { setStationConfig(newConfig); saveStationConfig(newConfig); };
