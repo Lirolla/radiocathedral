@@ -46,3 +46,5 @@
 - [x] Corrigir erro 400 Bad Request ao criar pasta no R2 (corrigido formato tRPC batch)
 - [x] Corrigir erro persistente 400 Bad Request - era Account ID errado (316ccd → 316cd)
 - [x] Pastas sendo criadas com prefixo 'radiotocai/' ao invés da raiz do bucket (CORRIGIDO)
+- [x] Erro 400 BAD_REQUEST ao fazer upload de música (adicionado ?batch=1)
+- [x] Implementar deleção de pasta no R2 quando apagar no frontend

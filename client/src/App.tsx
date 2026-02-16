@@ -386,7 +386,31 @@ function App() {
       return false;
     }
   };
-  const deletePlaylist = (id: string) => { deletePlaylistDoc(id); };
+  const deletePlaylist = async (id: string) => {
+    const playlist = playlists.find(p => p.id === id);
+    if (playlist && playlist.kind === 'storage') {
+      // Deletar pasta no R2
+      try {
+        const response = await fetch('/api/trpc/r2.deleteFolder?batch=1', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            "0": {
+              "json": {
+                folderName: playlist.name
+              }
+            }
+          }),
+        });
+        if (response.ok) {
+          console.log('[App] Pasta deletada no R2:', playlist.name);
+        }
+      } catch (error) {
+        console.error('[App] Erro ao deletar pasta no R2:', error);
+      }
+    }
+    deletePlaylistDoc(id);
+  };
   const addSongToPlaylist = (playlistId: string, song: Song) => {
     const playlist = playlists.find(p => p.id === playlistId);
     if (playlist) savePlaylist({ ...playlist, songs: [...playlist.songs, song] });

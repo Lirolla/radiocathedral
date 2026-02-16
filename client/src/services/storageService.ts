@@ -74,7 +74,7 @@ export const uploadSongToR2 = async (file: File, folderName: string = "Geral"): 
     const duration = await getAudioDuration(file);
     
     // Enviar para o backend
-    const response = await fetch('/api/trpc/r2.uploadSong', {
+    const response = await fetch('/api/trpc/r2.uploadSong?batch=1', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

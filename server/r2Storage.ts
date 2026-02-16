@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, ListObjectsV2Command } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, ListObjectsV2Command, DeleteObjectCommand } from "@aws-sdk/client-s3";
 
 // Configuração R2 (Cloudflare)
 const R2_ACCOUNT_ID = "023a0bad3f17632316cd10358db2201f";
@@ -138,5 +138,48 @@ export const listFilesFromR2 = async (folderName: string): Promise<any[]> => {
   } catch (error: any) {
     console.error("[R2 Backend] Erro ao listar arquivos:", error);
     throw new Error(`Erro ao listar arquivos R2: ${error.message}`);
+  }
+};
+
+// Deletar pasta e todos os arquivos dentro
+export const deleteFolderFromR2 = async (folderName: string): Promise<boolean> => {
+  const safeFolder = sanitizeString(folderName);
+  const prefix = `${safeFolder}/`;
+  const client = getR2Client();
+
+  try {
+    console.log(`[R2 Backend] Deletando pasta: ${prefix}`);
+    
+    // Listar todos os objetos na pasta
+    const listCommand = new ListObjectsV2Command({
+      Bucket: R2_BUCKET_NAME,
+      Prefix: prefix
+    });
+
+    const response = await client.send(listCommand);
+    const objects = response.Contents || [];
+    
+    if (objects.length === 0) {
+      console.log(`[R2 Backend] Pasta '${folderName}' já está vazia ou não existe.`);
+      return true;
+    }
+
+    // Deletar cada objeto
+    console.log(`[R2 Backend] Deletando ${objects.length} objetos...`);
+    for (const obj of objects) {
+      if (obj.Key) {
+        await client.send(new DeleteObjectCommand({
+          Bucket: R2_BUCKET_NAME,
+          Key: obj.Key
+        }));
+        console.log(`[R2 Backend]   ✓ Deletado: ${obj.Key}`);
+      }
+    }
+    
+    console.log(`[R2 Backend] Pasta '${folderName}' deletada com sucesso.`);
+    return true;
+  } catch (error: any) {
+    console.error("[R2 Backend] Erro ao deletar pasta:", error);
+    return false;
   }
 };
