@@ -95,9 +95,12 @@ export const uploadSongToR2 = async (file: File, folderName: string = "Geral"): 
     }
     
     const data = await response.json();
-    const result = data.result?.data;
+    // tRPC batch retorna array: [{ result: { data: {...} } }]
+    const batchResult = data[0];
+    const result = batchResult?.result?.data;
     
     if (!result || !result.url) {
+        console.error('[R2] Resposta inválida:', JSON.stringify(data));
         throw new Error('Upload falhou: resposta inválida do servidor');
     }
     
