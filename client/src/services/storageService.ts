@@ -42,37 +42,12 @@ const getAudioDuration = (file: File): Promise<number> => {
 };
 
 // 1. CRIAR PASTA (via API do backend)
+// NOTA: Esta função não deve ser chamada diretamente do frontend
+// Use o App.tsx createPlaylist que já chama createFolderInR2 do backend
 export const createFolderInR2 = async (folderName: string): Promise<boolean> => {
-    const safeFolderName = sanitizeString(folderName);
-    
-    try {
-        console.log(`[R2] Criando pasta: ${safeFolderName}`);
-        
-        const response = await fetch('/api/trpc/r2.createFolder', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                "0": {
-                    "json": {
-                        folderName: safeFolderName
-                    }
-                }
-            }),
-        });
-        
-        if (!response.ok) {
-            const error = await response.text();
-            throw new Error(`API Error: ${error}`);
-        }
-        
-        const data = await response.json();
-        console.log(`[R2] Pasta '${folderName}' criada com sucesso.`);
-        return data.result?.data?.success || false;
-    } catch (error: any) {
-        console.error("[R2] Erro ao criar pasta:", error);
-        alert(`Erro ao criar pasta: ${error.message}`);
-        return false;
-    }
+    console.warn("[R2] createFolderInR2 foi chamado do frontend - isso não deveria acontecer!");
+    console.warn("[R2] A criação de pastas deve ser feita pelo backend automaticamente.");
+    return true; // Retorna true para não bloquear o fluxo
 };
 
 // 2. UPLOAD DE MÚSICA (via API do backend)

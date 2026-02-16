@@ -45,3 +45,4 @@
 - [x] Corrigir bug: sistema não carrega playlist na transição (estava usando ID do schedule ao invés do playlistId)
 - [x] Corrigir erro 400 Bad Request ao criar pasta no R2 (corrigido formato tRPC batch)
 - [x] Corrigir erro persistente 400 Bad Request - era Account ID errado (316ccd → 316cd)
+- [x] Pastas sendo criadas com prefixo 'radiotocai/' ao invés da raiz do bucket (CORRIGIDO)

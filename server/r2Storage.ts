@@ -41,8 +41,8 @@ export const uploadSongToR2 = async (
   const safeFolderName = sanitizeString(folderName);
   const safeFileName = sanitizeString(fileName);
   
-  // Caminho completo com prefixo radiotocai/
-  const storageKey = `radiotocai/${safeFolderName}/${safeFileName}`;
+  // Caminho completo (raiz do bucket)
+  const storageKey = `${safeFolderName}/${safeFileName}`;
 
   try {
     const client = getR2Client();
@@ -79,7 +79,7 @@ export const uploadSongToR2 = async (
 // Criar pasta (simulada) no R2
 export const createFolderInR2 = async (folderName: string): Promise<boolean> => {
   const safeFolderName = sanitizeString(folderName);
-  const key = `radiotocai/${safeFolderName}/`;
+  const key = `${safeFolderName}/`;
   
   try {
     const client = getR2Client();
@@ -102,7 +102,7 @@ export const createFolderInR2 = async (folderName: string): Promise<boolean> => 
 // Listar arquivos de uma pasta
 export const listFilesFromR2 = async (folderName: string): Promise<any[]> => {
   const safeFolder = sanitizeString(folderName);
-  const prefix = `radiotocai/${safeFolder}/`;
+  const prefix = `${safeFolder}/`;
   const client = getR2Client();
 
   try {

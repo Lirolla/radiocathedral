@@ -41,7 +41,7 @@ import {
 } from './services/dbService';
 
 // Importar serviço de R2
-import { createFolderInR2, listFilesFromR2 } from './services/storageService';
+import { listFilesFromR2 } from './services/storageService';
 
 // Helper for safe ID generation
 const generateId = () => {
@@ -339,9 +339,52 @@ function App() {
 
   // --- DB WRAPPERS ---
   const createPlaylist = async (name: string, type: PlaylistType = 'music', ownerId: string = 'station', kind: 'storage' | 'playlist' = 'playlist') => {
+    console.log('[DEBUG createPlaylist] Chamado com:', { name, type, ownerId, kind });
     const newPlaylist: Playlist = { id: generateId(), name, type, ownerId, kind, songs: [] };
-    if (kind === 'storage') createFolderInR2(name).catch(console.error);
+    
+    // Primeiro salvar playlist localmente
     await savePlaylist(newPlaylist);
+    console.log('[DEBUG createPlaylist] Playlist salva localmente');
+    
+    // Se for pasta de armazenamento (storage), criar pasta no R2 via backend (assíncrono)
+    if (kind === 'storage') {
+      console.log('[DEBUG createPlaylist] É storage, chamando createFolderInR2Backend...');
+      // Criar pasta no R2 em background (não bloqueia a UI)
+      createFolderInR2Backend(name).catch(err => {
+        console.error('[R2] Erro ao criar pasta no R2:', err);
+      });
+    } else {
+      console.log('[DEBUG createPlaylist] NÃO é storage, kind =', kind);
+    }
+  };
+  
+  // Função auxiliar para criar pasta no R2 via backend
+  const createFolderInR2Backend = async (folderName: string): Promise<boolean> => {
+    console.log('[DEBUG createFolderInR2Backend] Iniciando com folderName:', folderName);
+    try {
+      const response = await fetch('/api/trpc/r2.createFolder?batch=1', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          "0": {
+            "json": { folderName }
+          }
+        }),
+      });
+      
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`API Error: ${error}`);
+      }
+      
+      const data = await response.json();
+      const success = data[0]?.result?.data?.success || false;
+      console.log(`[R2] Pasta '${folderName}' criada:`, success);
+      return success;
+    } catch (error: any) {
+      console.error("[R2] Erro ao criar pasta:", error);
+      return false;
+    }
   };
   const deletePlaylist = (id: string) => { deletePlaylistDoc(id); };
   const addSongToPlaylist = (playlistId: string, song: Song) => {
