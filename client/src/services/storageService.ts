@@ -131,7 +131,7 @@ export const listFilesFromR2 = async (folderName: string): Promise<Song[]> => {
         console.log(`[R2 Sync] Buscando arquivos em: ${safeFolder}`);
         
         const response = await fetch(
-            `/api/trpc/r2.listFiles?input=${encodeURIComponent(JSON.stringify({ folderName: safeFolder }))}`,
+            `/api/trpc/r2.listFiles?batch=1&input=${encodeURIComponent(JSON.stringify({"0": {"json": { folderName: safeFolder }}}))}`,
             { method: 'GET' }
         );
         
@@ -141,7 +141,7 @@ export const listFilesFromR2 = async (folderName: string): Promise<Song[]> => {
         }
         
         const data = await response.json();
-        const files = data.result?.data || [];
+        const files = data[0]?.result?.data?.json || [];
         
         console.log(`[R2 Sync] Encontrados ${files.length} arquivos.`);
 
