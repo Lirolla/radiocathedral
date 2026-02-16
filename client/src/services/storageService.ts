@@ -95,9 +95,10 @@ export const uploadSongToR2 = async (file: File, folderName: string = "Geral"): 
     }
     
     const data = await response.json();
-    // tRPC batch retorna array: [{ result: { data: {...} } }]
+    // tRPC batch retorna array: [{ result: { data: { json: {...}, key: "..." } } }]
     const batchResult = data[0];
-    const result = batchResult?.result?.data;
+    const resultData = batchResult?.result?.data;
+    const result = resultData?.json || resultData; // Tenta json primeiro, senão usa data direto
     
     if (!result || !result.url) {
         console.error('[R2] Resposta inválida:', JSON.stringify(data));
