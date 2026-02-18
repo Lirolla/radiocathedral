@@ -52,3 +52,9 @@
 - [x] URL do upload está em data.json.url ao invés de data.url (corrigido)
 - [x] Música apagada do frontend não é deletada do R2
 - [x] Erro 400 BAD_REQUEST no botão de sincronizar pasta R2 (corrigido formato batch)
+- [x] Corrigir crash do servidor na Hostinger após ~1 hora (erro 503)
+- [x] Adicionar tratamento de erros globais (uncaughtException, unhandledRejection)
+- [x] Desabilitar autenticação OAuth quando OAUTH_SERVER_URL não está configurado
+- [x] Proteger DB contra tentativas repetidas de conexão quando DATABASE_URL não está disponível
+- [x] Remover dependências da Manus do package.json (vite-plugin-manus-runtime, jsx-loc)
+- [x] Corrigir notificação para não crashar quando Forge API não está configurada

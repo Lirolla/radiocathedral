@@ -11,6 +11,13 @@ function getQueryParam(req: Request, key: string): string | undefined {
 
 export function registerOAuthRoutes(app: Express) {
   app.get("/api/oauth/callback", async (req: Request, res: Response) => {
+    // If OAuth is not configured, redirect to home
+    if (!process.env.OAUTH_SERVER_URL) {
+      console.log("[OAuth] Callback received but OAuth not configured, redirecting to home");
+      res.redirect(302, "/");
+      return;
+    }
+
     const code = getQueryParam(req, "code");
     const state = getQueryParam(req, "state");
 

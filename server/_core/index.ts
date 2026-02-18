@@ -8,6 +8,19 @@ import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 
+// === GLOBAL ERROR HANDLERS - Prevent process crash ===
+process.on("uncaughtException", (err) => {
+  console.error("[FATAL] Uncaught Exception:", err.message);
+  console.error(err.stack);
+  // Don't exit - let the process continue
+});
+
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("[FATAL] Unhandled Rejection at:", promise);
+  console.error("[FATAL] Reason:", reason);
+  // Don't exit - let the process continue
+});
+
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
     const server = net.createServer();
@@ -33,6 +46,12 @@ async function startServer() {
   // Configure body parser with larger size limit for file uploads
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
+
+  // Health check endpoint (no auth, no DB)
+  app.get("/api/health", (_req, res) => {
+    res.json({ ok: true, uptime: process.uptime(), memory: process.memoryUsage().rss });
+  });
+
   // OAuth callback under /api/oauth/callback
   registerOAuthRoutes(app);
   // tRPC API
@@ -59,7 +78,12 @@ async function startServer() {
 
   server.listen(port, () => {
     console.log(`Server running on http://localhost:${port}/`);
+    console.log(`Environment: ${process.env.NODE_ENV || "development"}`);
+    console.log(`OAUTH_SERVER_URL: ${process.env.OAUTH_SERVER_URL ? "configured" : "NOT configured"}`);
+    console.log(`DATABASE_URL: ${process.env.DATABASE_URL ? "configured" : "NOT configured"}`);
   });
 }
 
-startServer().catch(console.error);
+startServer().catch((err) => {
+  console.error("[FATAL] Failed to start server:", err);
+});
