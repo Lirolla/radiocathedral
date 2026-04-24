@@ -69,11 +69,11 @@ function App() {
   const [messages, setMessages] = useState<InboxMessage[]>([]); 
   
   const [stationConfig, setStationConfig] = useState<RadioStationConfig>({
-      name: "RadioTocai",
-      description: "A melhor música, 24 horas por dia.",
-      aboutUsText: "Rádio online moderna.",
+      name: "Radio Cathedral",
+      description: "O Som que eleva o espírito.",
+      aboutUsText: "A rádio gospel que conecta você ao melhor da música cristã, 24 horas por dia.",
       logoUrl: null,
-      theme: 'purple',
+      theme: 'gold',
       timezone: 'America/Sao_Paulo',
       contact: { address: '', city: '', phone: '', whatsapp: '', email: '' }
   });
@@ -146,7 +146,7 @@ function App() {
             if (data.length === 0) {
                 saveDJ({
                     id: 'admin-1', name: 'Admin Master', role: 'Admin', status: 'live',
-                    accessKey: 'admin-key-master', streamUrl: 'https://radiotocai.com/studio/admin', avatarColor: '#7c3aed'
+                    accessKey: 'admin-key-master', streamUrl: 'https://radiocathedral.com/studio/admin', avatarColor: '#eab308'
                 });
             } else {
                 setDjs(data);

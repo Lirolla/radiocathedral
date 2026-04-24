@@ -157,7 +157,7 @@ const Player: React.FC<PlayerProps> = ({
             </div>
             <div className="overflow-hidden">
                 <h3 className="font-bold text-gray-100 truncate">{currentSong?.title || "Selecione uma música"}</h3>
-                <p className="text-xs text-gray-400 truncate">{currentSong?.artist || "RadioTocai"}</p>
+                <p className="text-xs text-gray-400 truncate">{currentSong?.artist || "Radio Cathedral"}</p>
             </div>
         </div>
 

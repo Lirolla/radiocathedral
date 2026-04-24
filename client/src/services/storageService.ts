@@ -1,7 +1,7 @@
 import { Song } from '../types';
 
 // URL Pública do R2
-const PUBLIC_R2_DOMAIN = "https://musica.radiotocai.com";
+const PUBLIC_R2_DOMAIN = "https://gospel.radiocathedral.com";
 
 // Função auxiliar para limpar nomes
 const sanitizeString = (str: string) => {
