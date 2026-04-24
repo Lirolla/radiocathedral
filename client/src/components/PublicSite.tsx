@@ -240,6 +240,13 @@ const PublicSite: React.FC<PublicSiteProps> = ({
               bg: 'bg-white',
               shadow: 'shadow-white/30'
           };
+          case 'gold': return {
+              gradient: 'from-yellow-400 via-yellow-600 to-black',
+              text: 'text-yellow-400',
+              border: 'border-yellow-500',
+              bg: 'bg-yellow-500',
+              shadow: 'shadow-yellow-500/30'
+          };
           default: return { // Purple
               gradient: 'from-purple-500 via-pink-500 to-white',
               text: 'text-purple-300',

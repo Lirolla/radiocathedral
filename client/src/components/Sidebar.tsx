@@ -22,6 +22,7 @@ const Sidebar: React.FC<SidebarProps> = ({
          case 'blue': return 'text-blue-400';
          case 'red': return 'text-red-400';
          case 'white': return 'text-white';
+         case 'gold': return 'text-yellow-400';
          default: return 'text-purple-400';
      }
   };
@@ -33,6 +34,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           case 'blue': return 'bg-blue-600/20 text-blue-300 border border-blue-500/20';
           case 'red': return 'bg-red-600/20 text-red-300 border border-red-500/20';
           case 'white': return 'bg-white/10 text-white border border-white/20';
+          case 'gold': return 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/20';
           default: return 'bg-purple-600/20 text-purple-300 border border-purple-500/20';
       }
   };

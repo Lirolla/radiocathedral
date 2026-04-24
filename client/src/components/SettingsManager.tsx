@@ -158,22 +158,30 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({
 
               <div className="mb-6">
                   <label className="block text-xs text-gray-500 uppercase font-bold mb-2">Tema de Cores</label>
-                  <div className="grid grid-cols-4 gap-4">
-                      {['purple', 'blue', 'red', 'white'].map((color) => (
+                  <div className="grid grid-cols-5 gap-3">
+                      {[
+                        { id: 'purple', bg: '#9333ea', label: 'Roxo' },
+                        { id: 'blue',   bg: '#2563eb', label: 'Azul' },
+                        { id: 'red',    bg: '#dc2626', label: 'Vermelho' },
+                        { id: 'white',  bg: '#e5e7eb', label: 'Branco' },
+                        { id: 'gold',   bg: '#eab308', label: 'Dourado' },
+                      ].map(({ id, bg, label }) => (
                           <button
-                            key={color}
-                            onClick={() => handleChange('theme', color as ThemeColor)}
-                            className={`h-10 rounded-lg border-2 transition ${
-                                config.theme === color 
-                                ? 'border-white scale-105' 
+                            key={id}
+                            onClick={() => handleChange('theme', id as ThemeColor)}
+                            title={label}
+                            className={`h-10 rounded-lg border-2 transition flex items-center justify-center ${
+                                config.theme === id
+                                ? 'border-white scale-105'
                                 : 'border-transparent opacity-50 hover:opacity-100'
                             }`}
-                            style={{ backgroundColor: color === 'white' ? '#e5e7eb' : `var(--color-${color}-600, ${color})` }}
+                            style={{ backgroundColor: bg }}
                           >
-                             {config.theme === color && <div className="w-full h-full flex items-center justify-center text-black/50">●</div>}
+                             {config.theme === id && <span className="text-black/60 text-lg">●</span>}
                           </button>
                       ))}
                   </div>
+                  <p className="text-[10px] text-gray-500 mt-2">Seleccione o tema de cores do site público. O tema <strong>Dourado</strong> usa fundo preto com detalhes dourados.</p>
               </div>
 
               <div className="mb-6">

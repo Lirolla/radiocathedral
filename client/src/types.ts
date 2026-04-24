@@ -112,6 +112,6 @@ export interface AIResponse {
 }
 
 // Configuração de Temas
-export type ThemeColor = 'purple' | 'blue' | 'red' | 'white';
+export type ThemeColor = 'purple' | 'blue' | 'red' | 'white' | 'gold';
 
 export type ViewState = 'dashboard' | 'acervo' | 'library' | 'team' | 'schedule' | 'jingles' | 'public_site' | 'studio' | 'settings' | 'voting' | 'messages';
