@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Song, ThemeColor, RadioStationConfig, Playlist, Vote, InboxMessage, ScheduleItem } from '../types';
-import { PlayIcon, PauseIcon, MusicIcon, ClockIcon, PhoneIcon, MegaphoneIcon, CalendarIcon, LockIcon, StarIcon, CheckIcon, XMarkIcon, HeartIcon, MicIcon, HomeIcon, UsersIcon } from './Icons';
+import { Song, ThemeColor, RadioStationConfig, Playlist, Vote, InboxMessage, ScheduleItem, Partner } from '../types';
+import { PlayIcon, PauseIcon, MusicIcon, ClockIcon, PhoneIcon, MegaphoneIcon, CalendarIcon, LockIcon, StarIcon, CheckIcon, XMarkIcon, HeartIcon, MicIcon, HomeIcon, UsersIcon, HandshakeIcon } from './Icons';
 import LoginModal from './LoginModal';
 import { registerListener, updateListenerHeartbeat, unregisterListener } from '../services/dbService';
 
@@ -42,7 +42,7 @@ const PublicSite: React.FC<PublicSiteProps> = ({
   playlists = []
 }) => {
   // Classic Tab State (For Template 1)
-  const [activeTab, setActiveTab] = useState<'home' | 'requests' | 'contact' | 'top10' | 'about' | 'schedule' | 'love-story'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'requests' | 'contact' | 'top10' | 'about' | 'schedule' | 'love-story' | 'partners'>('home');
   const [time, setTime] = useState<string>('');
   
   // Login State
@@ -596,27 +596,86 @@ const PublicSite: React.FC<PublicSiteProps> = ({
             </div>
         )}
 
-        {/* SPONSOR CARD NA HOME */}
-        {config.sponsor?.active && (
-            <a
-                href={config.sponsor.link || '#'}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-10 w-full max-w-md flex items-center gap-4 p-4 rounded-2xl bg-black/60 border border-yellow-500/30 hover:border-yellow-400/70 backdrop-blur-md shadow-lg shadow-yellow-500/10 transition-all group animate-in slide-in-from-bottom-5 fade-in duration-1000 delay-500"
-            >
-                {config.sponsor.logoUrl && (
-                    <img src={config.sponsor.logoUrl} alt={config.sponsor.name} className="w-14 h-14 rounded-xl object-contain bg-white/5 p-1 shrink-0" />
-                )}
-                <div className="flex-1 text-left">
-                    <p className="text-[10px] text-yellow-500 uppercase font-bold tracking-widest mb-0.5">Parceiro Oficial</p>
-                    <p className="text-white font-bold text-sm group-hover:text-yellow-300 transition">{config.sponsor.name}</p>
-                    {config.sponsor.slogan && <p className="text-gray-400 text-xs mt-0.5">{config.sponsor.slogan}</p>}
+        {/* PARCEIROS NA HOME: exibe os que têm showInHome=true */}
+        {(() => {
+            const homePartners = (config.sponsor?.partners || []).filter(p => p.active && p.showInHome);
+            if (homePartners.length === 0) return null;
+            return (
+                <div className="mt-10 w-full max-w-md flex flex-col gap-3 animate-in slide-in-from-bottom-5 fade-in duration-1000 delay-500">
+                    <p className="text-[10px] text-yellow-500 uppercase font-bold tracking-widest text-center">Parceiros Oficiais</p>
+                    {homePartners.map(p => (
+                        <a key={p.id} href={p.link || '#'} target="_blank" rel="noopener noreferrer"
+                            className="w-full flex items-center gap-4 p-4 rounded-2xl bg-black/60 border border-yellow-500/30 hover:border-yellow-400/70 backdrop-blur-md shadow-lg shadow-yellow-500/10 transition-all group"
+                        >
+                            {p.logoUrl && <img src={p.logoUrl} alt={p.name} className="w-12 h-12 rounded-xl object-contain bg-white/5 p-1 shrink-0" />}
+                            <div className="flex-1 text-left">
+                                <p className="text-white font-bold text-sm group-hover:text-yellow-300 transition">{p.name}</p>
+                                {p.slogan && <p className="text-gray-400 text-xs mt-0.5">{p.slogan}</p>}
+                            </div>
+                            <span className={`text-xs font-bold px-3 py-1.5 rounded-full ${colors.bg} text-black shrink-0`}>Conhecer</span>
+                        </a>
+                    ))}
                 </div>
-                <span className={`text-xs font-bold px-3 py-1.5 rounded-full ${colors.bg} text-black shrink-0`}>Conhecer</span>
-            </a>
-        )}
+            );
+        })()}
     </div>
   );
+
+  const renderPartners = () => {
+    const pagePartners = (config.sponsor?.partners || []).filter(p => p.active && p.showInPage);
+    return (
+      <div id="partners" className="w-full max-w-4xl py-20 animate-in slide-in-from-right-10 fade-in duration-500 mx-auto">
+          <header className="mb-12 text-center">
+              <h2 className="text-3xl md:text-5xl font-black mb-2 text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400">
+                  NOSSOS PARCEIROS
+              </h2>
+              <p className="text-gray-400 tracking-widest uppercase text-xs font-bold">Quem acredita e apoia a {config.name}</p>
+          </header>
+          {pagePartners.length === 0 ? (
+              <div className="text-center text-gray-500 py-20">
+                  <HandshakeIcon className="w-16 h-16 mx-auto mb-4 opacity-20" />
+                  <p>Nenhum parceiro cadastrado ainda.</p>
+              </div>
+          ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {pagePartners.map(p => (
+                      <a key={p.id} href={p.link || '#'} target="_blank" rel="noopener noreferrer"
+                          className="flex items-center gap-5 p-6 rounded-3xl bg-black/40 border border-white/5 hover:border-yellow-500/50 backdrop-blur-md shadow-lg transition-all group hover:bg-white/5"
+                      >
+                          {p.logoUrl ? (
+                              <img src={p.logoUrl} alt={p.name} className="w-20 h-20 rounded-2xl object-contain bg-white/5 p-2 shrink-0 group-hover:scale-105 transition" />
+                          ) : (
+                              <div className="w-20 h-20 rounded-2xl bg-gray-800 flex items-center justify-center shrink-0">
+                                  <HandshakeIcon className="w-10 h-10 text-gray-600" />
+                              </div>
+                          )}
+                          <div className="flex-1 text-left">
+                              <p className="text-[10px] text-yellow-500 uppercase font-bold tracking-widest mb-1">Parceiro Oficial</p>
+                              <h3 className="text-xl font-bold text-white group-hover:text-yellow-300 transition">{p.name}</h3>
+                              {p.slogan && <p className="text-gray-400 text-sm mt-1">{p.slogan}</p>}
+                              <p className="text-yellow-500/60 text-xs mt-3 font-semibold group-hover:text-yellow-400 transition">Visitar &rarr;</p>
+                          </div>
+                      </a>
+                  ))}
+              </div>
+          )}
+          {config.sponsor?.partnerEmail && (
+              <div className="mt-16 text-center p-8 rounded-3xl bg-black/40 border border-yellow-500/20">
+                  <HandshakeIcon className={`w-12 h-12 mx-auto mb-4 ${colors.text}`} />
+                  <h3 className="text-2xl font-bold text-white mb-2">Seja Nosso Parceiro</h3>
+                  <p className="text-gray-400 mb-6">Quer divulgar sua marca ou app para nossa audiência? Entre em contacto!</p>
+                  <a
+                      href={`mailto:${config.sponsor.partnerEmail}?subject=Quero ser parceiro da ${config.name}`}
+                      className={`inline-flex items-center gap-2 px-6 py-3 rounded-full ${colors.bg} text-black font-bold hover:opacity-90 transition`}
+                  >
+                      <StarIcon className="w-4 h-4" />
+                      Entrar em Contacto
+                  </a>
+              </div>
+          )}
+      </div>
+    );
+  };
 
   return (
     <div className="relative w-full h-full bg-gray-900 text-white font-sans overflow-hidden flex flex-col">
@@ -789,6 +848,13 @@ const PublicSite: React.FC<PublicSiteProps> = ({
                 >
                     <HeartIcon className="w-6 h-6 text-pink-500 animate-pulse" />
                 </button>
+                {(config.sponsor?.partners || []).some(p => p.active && p.showInPage) && (
+                    <button
+                        onClick={() => setActiveTab('partners')}
+                        title="Parceiros"
+                        className={`hover:text-white transition-all hover:scale-125 ${!isOnePage && activeTab === 'partners' ? `${colors.text}` : ''}`}
+                    ><HandshakeIcon className="w-5 h-5" /></button>
+                )}
             </div>
 
             <div className="flex items-center gap-4">
@@ -818,6 +884,7 @@ const PublicSite: React.FC<PublicSiteProps> = ({
                 {activeTab === 'about' && renderAbout()}
                 {activeTab === 'contact' && renderContact()}
                 {activeTab === 'love-story' && renderLoveStory()}
+                {activeTab === 'partners' && renderPartners()}
             </div>
         )}
 
@@ -854,46 +921,47 @@ const PublicSite: React.FC<PublicSiteProps> = ({
 
       </main>
 
-      {/* BANNER FLUTUANTE DO PARCEIRO */}
-      {config.sponsor?.active && (
-          <div className="fixed bottom-20 right-4 z-40 animate-in slide-in-from-right-10 fade-in duration-700">
-              <a
-                  href={config.sponsor.link || '#'}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-black/80 border border-yellow-500/40 hover:border-yellow-400 backdrop-blur-md shadow-xl shadow-black/50 transition-all group max-w-[220px]"
-              >
-                  {config.sponsor.logoUrl && (
-                      <img src={config.sponsor.logoUrl} alt={config.sponsor.name} className="w-8 h-8 rounded-lg object-contain shrink-0" />
-                  )}
-                  <div className="flex-1 min-w-0">
-                      <p className="text-[9px] text-yellow-500 uppercase font-bold tracking-widest leading-none mb-0.5">Parceiro</p>
-                      <p className="text-white text-xs font-semibold truncate group-hover:text-yellow-300 transition">{config.sponsor.name}</p>
-                  </div>
-              </a>
-          </div>
-      )}
+      {/* BANNER FLUTUANTE: exibe os que têm showInBanner=true */}
+      {(() => {
+          const bannerPartners = (config.sponsor?.partners || []).filter(p => p.active && p.showInBanner);
+          if (bannerPartners.length === 0) return null;
+          return (
+              <div className="fixed bottom-20 right-4 z-40 flex flex-col gap-2 animate-in slide-in-from-right-10 fade-in duration-700">
+                  {bannerPartners.map(p => (
+                      <a key={p.id} href={p.link || '#'} target="_blank" rel="noopener noreferrer"
+                          className="flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-black/80 border border-yellow-500/40 hover:border-yellow-400 backdrop-blur-md shadow-xl shadow-black/50 transition-all group max-w-[220px]"
+                      >
+                          {p.logoUrl && <img src={p.logoUrl} alt={p.name} className="w-8 h-8 rounded-lg object-contain shrink-0" />}
+                          <div className="flex-1 min-w-0">
+                              <p className="text-[9px] text-yellow-500 uppercase font-bold tracking-widest leading-none mb-0.5">Parceiro</p>
+                              <p className="text-white text-xs font-semibold truncate group-hover:text-yellow-300 transition">{p.name}</p>
+                          </div>
+                      </a>
+                  ))}
+              </div>
+          );
+      })()}
 
       {/* 5. MINIMALIST FOOTER */}
       <footer className="w-full z-20 py-6 text-center text-xs text-gray-500 bg-black/90 backdrop-blur-md border-t border-white/5 flex flex-col items-center gap-2">
 
-        {/* Sponsor no rodapé */}
-        {config.sponsor?.active && (
-            <div className="flex items-center gap-3 mb-3 pb-3 border-b border-white/5 w-full max-w-xs justify-center">
-                {config.sponsor.logoUrl && (
-                    <img src={config.sponsor.logoUrl} alt={config.sponsor.name} className="w-6 h-6 rounded object-contain" />
-                )}
-                <a
-                    href={config.sponsor.link || '#'}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-gray-400 hover:text-yellow-400 transition font-medium"
-                >
-                    {config.sponsor.name}
-                </a>
-                <span className="text-gray-700 text-[10px] uppercase tracking-wider">Parceiro</span>
-            </div>
-        )}
+        {/* Parceiros no rodapé */}
+        {(() => {
+            const footerPartners = (config.sponsor?.partners || []).filter(p => p.active && p.showInFooter);
+            if (footerPartners.length === 0) return null;
+            return (
+                <div className="flex flex-wrap items-center justify-center gap-4 mb-3 pb-3 border-b border-white/5 w-full max-w-lg">
+                    {footerPartners.map(p => (
+                        <a key={p.id} href={p.link || '#'} target="_blank" rel="noopener noreferrer"
+                            className="flex items-center gap-2 text-gray-400 hover:text-yellow-400 transition"
+                        >
+                            {p.logoUrl && <img src={p.logoUrl} alt={p.name} className="w-5 h-5 rounded object-contain" />}
+                            <span className="font-medium text-xs">{p.name}</span>
+                        </a>
+                    ))}
+                </div>
+            );
+        })()}
 
         <p>
           <a href="https://agencyl1.com" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-blue-400 transition">

@@ -112,14 +112,25 @@ export interface AIResponse {
   text: string;
 }
 
-// Configuração de Parceiro/Patrocinador
-export interface SponsorConfig {
+// Configuração de cada Parceiro
+export interface Partner {
+  id: string;
   active: boolean;
   name: string;
   slogan: string;
   logoUrl: string;
   link: string;
-  partnerEmail: string; // email para quem quer ser parceiro
+  showInBanner: boolean;
+  showInHome: boolean;
+  showInFooter: boolean;
+  showInPage: boolean;
+}
+
+// Configuração geral de Parceiros
+export interface SponsorConfig {
+  partners: Partner[];
+  partnerEmail: string;
+  showPartnersPage: boolean;
 }
 
 // Configuração de Temas

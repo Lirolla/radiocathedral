@@ -1,7 +1,7 @@
 
 import React, { useRef, useState } from 'react';
-import { RadioStationConfig, ThemeColor, Playlist, SponsorConfig } from '../types';
-import { CogIcon, UploadIcon, BoltIcon, ClockIcon, SignalIcon, ArchiveIcon } from './Icons';
+import { RadioStationConfig, ThemeColor, Playlist, SponsorConfig, Partner } from '../types';
+import { CogIcon, UploadIcon, BoltIcon, ClockIcon, SignalIcon, ArchiveIcon, PlusIcon, TrashIcon, PencilIcon, CheckIcon, XMarkIcon } from './Icons';
 import { testFirebaseConnection, savePlaylist } from '../services/dbService';
 
 interface SettingsManagerProps {
@@ -19,21 +19,54 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
-  const sponsorLogoInputRef = useRef<HTMLInputElement>(null);
-
-  const handleSponsorLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        handleChange('sponsor', { ...(config.sponsor || {}), logoUrl: reader.result as string } as SponsorConfig);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
+  const partnerLogoInputRef = useRef<HTMLInputElement>(null);
   const [testStatus, setTestStatus] = useState<{msg: string, success: boolean} | null>(null);
   const [isTesting, setIsTesting] = useState(false);
   const [isCreatingDefaults, setIsCreatingDefaults] = useState(false);
+  const [editingPartnerId, setEditingPartnerId] = useState<string | null>(null);
+  const [newPartner, setNewPartner] = useState<Partial<Partner> | null>(null);
+
+  const getPartners = (): Partner[] => config.sponsor?.partners || [];
+
+  const savePartners = (partners: Partner[]) => {
+    handleChange('sponsor', { ...(config.sponsor || { partnerEmail: '', showPartnersPage: true }), partners } as SponsorConfig);
+  };
+
+  const handleAddPartner = () => {
+    setNewPartner({ id: Date.now().toString(), active: true, name: '', slogan: '', logoUrl: '', link: '', showInBanner: false, showInHome: true, showInFooter: true, showInPage: true });
+  };
+
+  const handleSaveNewPartner = () => {
+    if (!newPartner?.name) return;
+    savePartners([...getPartners(), newPartner as Partner]);
+    setNewPartner(null);
+  };
+
+  const handleDeletePartner = (id: string) => {
+    savePartners(getPartners().filter(p => p.id !== id));
+  };
+
+  const handleTogglePartner = (id: string) => {
+    savePartners(getPartners().map(p => p.id === id ? { ...p, active: !p.active } : p));
+  };
+
+  const handleUpdatePartner = (id: string, field: keyof Partner, value: any) => {
+    savePartners(getPartners().map(p => p.id === id ? { ...p, [field]: value } : p));
+  };
+
+  const handlePartnerLogoUpload = (e: React.ChangeEvent<HTMLInputElement>, partnerId: string | null) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      if (partnerId) {
+        handleUpdatePartner(partnerId, 'logoUrl', reader.result as string);
+      } else if (newPartner) {
+        setNewPartner(prev => ({ ...prev, logoUrl: reader.result as string }));
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleChange = (field: keyof RadioStationConfig, value: any) => {
     onUpdateConfig({ ...config, [field]: value });
@@ -281,102 +314,153 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({
                 </div>
             </div>
 
-            {/* 3. PARCEIRO / PATROCINADOR */}
+            {/* 3. PARCEIROS / PATROCINADORES */}
             <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
                 <h3 className="text-lg font-bold text-white mb-1 border-b border-gray-800 pb-2 flex items-center gap-2">
-                    ⭐ Parceiro & Patrocinador
+                    ⭐ Parceiros & Patrocinadores
                 </h3>
-                <p className="text-xs text-gray-500 mb-5">Configure o parceiro que aparece no site público (banner, home e rodapé).</p>
+                <p className="text-xs text-gray-500 mb-5">Gerencie múltiplos parceiros e defina onde cada um aparece no site.</p>
 
-                {/* Toggle Activo */}
-                <div className="flex items-center justify-between mb-5">
-                    <span className="text-sm text-gray-300 font-medium">Exibir parceiro no site</span>
+                {/* Configurações gerais */}
+                <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm text-gray-300 font-medium">Exibir página de Parceiros no menu</span>
                     <button
-                        onClick={() => handleChange('sponsor', { ...(config.sponsor || {}), active: !(config.sponsor?.active) } as SponsorConfig)}
-                        className={`relative w-12 h-6 rounded-full transition-colors ${ config.sponsor?.active ? 'bg-yellow-500' : 'bg-gray-700' }`}
+                        onClick={() => handleChange('sponsor', { ...(config.sponsor || { partners: [], partnerEmail: '' }), showPartnersPage: !(config.sponsor?.showPartnersPage) } as SponsorConfig)}
+                        className={`relative w-12 h-6 rounded-full transition-colors ${ config.sponsor?.showPartnersPage ? 'bg-yellow-500' : 'bg-gray-700' }`}
                     >
-                        <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${ config.sponsor?.active ? 'left-7' : 'left-1' }`} />
+                        <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${ config.sponsor?.showPartnersPage ? 'left-7' : 'left-1' }`} />
                     </button>
                 </div>
-
-                <div className="mb-4">
-                    <label className="block text-xs text-gray-500 uppercase font-bold mb-2">Nome do Parceiro</label>
-                    <input
-                        type="text"
-                        value={config.sponsor?.name || ''}
-                        onChange={(e) => handleChange('sponsor', { ...(config.sponsor || {}), name: e.target.value } as SponsorConfig)}
-                        placeholder="Ex: Encontro Cristão App"
-                        className="w-full bg-gray-950 border border-gray-800 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-yellow-500"
-                    />
-                </div>
-
-                <div className="mb-4">
-                    <label className="block text-xs text-gray-500 uppercase font-bold mb-2">Slogan / Descrição Curta</label>
-                    <input
-                        type="text"
-                        value={config.sponsor?.slogan || ''}
-                        onChange={(e) => handleChange('sponsor', { ...(config.sponsor || {}), slogan: e.target.value } as SponsorConfig)}
-                        placeholder="Ex: Encontros cristãos de verdade"
-                        className="w-full bg-gray-950 border border-gray-800 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-yellow-500"
-                    />
-                </div>
-
-                <div className="mb-4">
-                    <label className="block text-xs text-gray-500 uppercase font-bold mb-2">Logo do Parceiro</label>
-                    <div className="flex items-center gap-4">
-                        <div className="w-16 h-16 bg-gray-950 rounded-lg border border-gray-800 flex items-center justify-center overflow-hidden relative group shrink-0">
-                            {config.sponsor?.logoUrl ? (
-                                <img src={config.sponsor.logoUrl} alt="Logo Parceiro" className="w-full h-full object-contain" />
-                            ) : (
-                                <span className="text-xs text-gray-600 text-center leading-tight">Sem Logo</span>
-                            )}
-                            {config.sponsor?.logoUrl && (
-                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
-                                    <button onClick={() => handleChange('sponsor', { ...(config.sponsor || {}), logoUrl: '' } as SponsorConfig)} className="text-xs text-red-400 hover:text-white">Remover</button>
-                                </div>
-                            )}
-                        </div>
-                        <div className="flex-1">
-                            <input
-                                type="file"
-                                accept="image/*"
-                                ref={sponsorLogoInputRef}
-                                className="hidden"
-                                onChange={handleSponsorLogoUpload}
-                            />
-                            <button
-                                onClick={() => sponsorLogoInputRef.current?.click()}
-                                className="bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-lg text-sm flex items-center gap-2 transition mb-2"
-                            >
-                                <UploadIcon className="w-4 h-4" />
-                                Carregar Logo
-                            </button>
-                            <p className="text-[10px] text-gray-500">PNG transparente recomendado</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="mb-4">
-                    <label className="block text-xs text-gray-500 uppercase font-bold mb-2">Link (URL de destino)</label>
-                    <input
-                        type="text"
-                        value={config.sponsor?.link || ''}
-                        onChange={(e) => handleChange('sponsor', { ...(config.sponsor || {}), link: e.target.value } as SponsorConfig)}
-                        placeholder="https://seuapp.com"
-                        className="w-full bg-gray-950 border border-gray-800 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-yellow-500"
-                    />
-                </div>
-
-                <div className="mb-2">
+                <div className="mb-5">
                     <label className="block text-xs text-gray-500 uppercase font-bold mb-2">Email para &quot;Seja Nosso Parceiro&quot;</label>
                     <input
                         type="email"
                         value={config.sponsor?.partnerEmail || ''}
-                        onChange={(e) => handleChange('sponsor', { ...(config.sponsor || {}), partnerEmail: e.target.value } as SponsorConfig)}
+                        onChange={(e) => handleChange('sponsor', { ...(config.sponsor || { partners: [], showPartnersPage: true }), partnerEmail: e.target.value } as SponsorConfig)}
                         placeholder="parcerias@radiocathedral.com"
                         className="w-full bg-gray-950 border border-gray-800 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-yellow-500"
                     />
                 </div>
+
+                {/* Lista de Parceiros */}
+                <div className="space-y-3 mb-4">
+                    {getPartners().map((partner) => (
+                        <div key={partner.id} className="bg-gray-950 border border-gray-800 rounded-xl p-4">
+                            <div className="flex items-center gap-3 mb-3">
+                                <div className="w-12 h-12 bg-gray-900 rounded-lg border border-gray-700 flex items-center justify-center overflow-hidden shrink-0">
+                                    {partner.logoUrl ? <img src={partner.logoUrl} alt={partner.name} className="w-full h-full object-contain" /> : <span className="text-[10px] text-gray-600">Logo</span>}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-white font-semibold text-sm truncate">{partner.name || 'Sem nome'}</p>
+                                    <p className="text-gray-500 text-xs truncate">{partner.slogan}</p>
+                                </div>
+                                <button
+                                    onClick={() => handleTogglePartner(partner.id)}
+                                    className={`relative w-10 h-5 rounded-full transition-colors shrink-0 ${ partner.active ? 'bg-yellow-500' : 'bg-gray-700' }`}
+                                >
+                                    <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${ partner.active ? 'left-5' : 'left-0.5' }`} />
+                                </button>
+                                <button onClick={() => setEditingPartnerId(editingPartnerId === partner.id ? null : partner.id)} className="text-gray-500 hover:text-yellow-400 transition"><PencilIcon className="w-4 h-4" /></button>
+                                <button onClick={() => handleDeletePartner(partner.id)} className="text-gray-500 hover:text-red-400 transition"><TrashIcon className="w-4 h-4" /></button>
+                            </div>
+                            {editingPartnerId === partner.id && (
+                                <div className="border-t border-gray-800 pt-3 space-y-3">
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="block text-[10px] text-gray-500 uppercase font-bold mb-1">Nome</label>
+                                            <input type="text" value={partner.name} onChange={(e) => handleUpdatePartner(partner.id, 'name', e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-yellow-500" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[10px] text-gray-500 uppercase font-bold mb-1">Slogan</label>
+                                            <input type="text" value={partner.slogan} onChange={(e) => handleUpdatePartner(partner.id, 'slogan', e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-yellow-500" />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] text-gray-500 uppercase font-bold mb-1">Link</label>
+                                        <input type="text" value={partner.link} onChange={(e) => handleUpdatePartner(partner.id, 'link', e.target.value)} placeholder="https://..." className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-yellow-500" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] text-gray-500 uppercase font-bold mb-1">Logo</label>
+                                        <div className="flex items-center gap-3">
+                                            {partner.logoUrl && <img src={partner.logoUrl} alt="" className="w-10 h-10 rounded object-contain bg-gray-900" />}
+                                            <input type="file" accept="image/*" ref={partnerLogoInputRef} className="hidden" onChange={(e) => handlePartnerLogoUpload(e, partner.id)} />
+                                            <button onClick={() => partnerLogoInputRef.current?.click()} className="bg-gray-800 hover:bg-gray-700 text-white px-3 py-1.5 rounded-lg text-xs flex items-center gap-1 transition"><UploadIcon className="w-3 h-3" /> Carregar</button>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] text-gray-500 uppercase font-bold mb-2">Onde aparece</label>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {([
+                                                { field: 'showInBanner', label: 'Banner flutuante' },
+                                                { field: 'showInHome', label: 'Card na Home' },
+                                                { field: 'showInFooter', label: 'Rodapé' },
+                                                { field: 'showInPage', label: 'Página Parceiros' },
+                                            ] as { field: keyof Partner; label: string }[]).map(({ field, label }) => (
+                                                <label key={String(field)} className="flex items-center gap-2 cursor-pointer">
+                                                    <input type="checkbox" checked={!!partner[field]} onChange={(e) => handleUpdatePartner(partner.id, field, e.target.checked)} className="accent-yellow-500 w-4 h-4" />
+                                                    <span className="text-xs text-gray-300">{label}</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    ))}
+                </div>
+
+                {/* Formulário novo parceiro */}
+                {newPartner ? (
+                    <div className="bg-gray-950 border border-yellow-500/30 rounded-xl p-4 space-y-3">
+                        <p className="text-xs text-yellow-400 font-bold uppercase">Novo Parceiro</p>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="block text-[10px] text-gray-500 uppercase font-bold mb-1">Nome *</label>
+                                <input type="text" value={newPartner.name || ''} onChange={(e) => setNewPartner({ ...newPartner, name: e.target.value })} placeholder="Nome do parceiro" className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-yellow-500" />
+                            </div>
+                            <div>
+                                <label className="block text-[10px] text-gray-500 uppercase font-bold mb-1">Slogan</label>
+                                <input type="text" value={newPartner.slogan || ''} onChange={(e) => setNewPartner({ ...newPartner, slogan: e.target.value })} placeholder="Frase curta" className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-yellow-500" />
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-[10px] text-gray-500 uppercase font-bold mb-1">Link</label>
+                            <input type="text" value={newPartner.link || ''} onChange={(e) => setNewPartner({ ...newPartner, link: e.target.value })} placeholder="https://..." className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-yellow-500" />
+                        </div>
+                        <div>
+                            <label className="block text-[10px] text-gray-500 uppercase font-bold mb-1">Logo</label>
+                            <div className="flex items-center gap-3">
+                                {newPartner.logoUrl && <img src={newPartner.logoUrl} alt="" className="w-10 h-10 rounded object-contain bg-gray-900" />}
+                                <input type="file" accept="image/*" ref={partnerLogoInputRef} className="hidden" onChange={(e) => handlePartnerLogoUpload(e, null)} />
+                                <button onClick={() => partnerLogoInputRef.current?.click()} className="bg-gray-800 hover:bg-gray-700 text-white px-3 py-1.5 rounded-lg text-xs flex items-center gap-1 transition"><UploadIcon className="w-3 h-3" /> Carregar Logo</button>
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-[10px] text-gray-500 uppercase font-bold mb-2">Onde aparece</label>
+                            <div className="grid grid-cols-2 gap-2">
+                                {([
+                                    { field: 'showInBanner', label: 'Banner flutuante' },
+                                    { field: 'showInHome', label: 'Card na Home' },
+                                    { field: 'showInFooter', label: 'Rodapé' },
+                                    { field: 'showInPage', label: 'Página Parceiros' },
+                                ] as { field: keyof Partner; label: string }[]).map(({ field, label }) => (
+                                    <label key={String(field)} className="flex items-center gap-2 cursor-pointer">
+                                        <input type="checkbox" checked={!!newPartner[field as keyof typeof newPartner]} onChange={(e) => setNewPartner({ ...newPartner, [field]: e.target.checked })} className="accent-yellow-500 w-4 h-4" />
+                                        <span className="text-xs text-gray-300">{label}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="flex gap-2 pt-1">
+                            <button onClick={handleSaveNewPartner} className="flex-1 bg-yellow-500 hover:bg-yellow-400 text-black font-bold px-4 py-2 rounded-lg text-sm flex items-center justify-center gap-2 transition"><CheckIcon className="w-4 h-4" />Salvar Parceiro</button>
+                            <button onClick={() => setNewPartner(null)} className="bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-lg text-sm flex items-center gap-2 transition"><XMarkIcon className="w-4 h-4" />Cancelar</button>
+                        </div>
+                    </div>
+                ) : (
+                    <button onClick={handleAddPartner} className="w-full border-2 border-dashed border-gray-700 hover:border-yellow-500/50 text-gray-500 hover:text-yellow-400 rounded-xl py-3 text-sm flex items-center justify-center gap-2 transition">
+                        <PlusIcon className="w-4 h-4" /> Adicionar Parceiro
+                    </button>
+                )}
             </div>
 
             {/* 4. TIMEZONE & BACKUP & DIAGNOSTIC */}
