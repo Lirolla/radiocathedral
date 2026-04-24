@@ -44,6 +44,8 @@ const PublicSite: React.FC<PublicSiteProps> = ({
   // Classic Tab State (For Template 1)
   const [activeTab, setActiveTab] = useState<'home' | 'requests' | 'contact' | 'top10' | 'about' | 'schedule' | 'love-story' | 'partners'>('home');
   const [time, setTime] = useState<string>('');
+  // Carrossel de parceiros na home
+  const [partnerCarouselIndex, setPartnerCarouselIndex] = useState(0);
   
   // Login State
   const [isAdminLoginOpen, setIsAdminLoginOpen] = useState(false);
@@ -132,6 +134,16 @@ const PublicSite: React.FC<PublicSiteProps> = ({
       unregisterListener(listenerId);
     };
   }, []);
+
+  // Auto-rotação do carrossel de parceiros a cada 4 segundos
+  useEffect(() => {
+    const homePartners = (config.sponsor?.partners || []).filter(p => p.active && p.showInHome);
+    if (homePartners.length <= 1) return;
+    const interval = setInterval(() => {
+      setPartnerCarouselIndex(prev => (prev + 1) % homePartners.length);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [config.sponsor?.partners]);
 
   const scrollToSection = (id: string) => {
       const element = document.getElementById(id);
@@ -596,25 +608,35 @@ const PublicSite: React.FC<PublicSiteProps> = ({
             </div>
         )}
 
-        {/* PARCEIROS NA HOME: exibe os que têm showInHome=true */}
+        {/* PARCEIROS NA HOME: carrossel automático */}
         {(() => {
             const homePartners = (config.sponsor?.partners || []).filter(p => p.active && p.showInHome);
             if (homePartners.length === 0) return null;
+            const idx = partnerCarouselIndex % homePartners.length;
+            const p = homePartners[idx];
             return (
-                <div className="mt-10 w-full max-w-md flex flex-col gap-3 animate-in slide-in-from-bottom-5 fade-in duration-1000 delay-500">
-                    <p className="text-[10px] text-yellow-500 uppercase font-bold tracking-widest text-center">Parceiros Oficiais</p>
-                    {homePartners.map(p => (
-                        <a key={p.id} href={p.link || '#'} target="_blank" rel="noopener noreferrer"
-                            className="w-full flex items-center gap-4 p-4 rounded-2xl bg-black/60 border border-yellow-500/30 hover:border-yellow-400/70 backdrop-blur-md shadow-lg shadow-yellow-500/10 transition-all group"
-                        >
-                            {p.logoUrl && <img src={p.logoUrl} alt={p.name} className="w-12 h-12 rounded-xl object-contain bg-white/5 p-1 shrink-0" />}
-                            <div className="flex-1 text-left">
-                                <p className="text-white font-bold text-sm group-hover:text-yellow-300 transition">{p.name}</p>
-                                {p.slogan && <p className="text-gray-400 text-xs mt-0.5">{p.slogan}</p>}
-                            </div>
-                            <span className={`text-xs font-bold px-3 py-1.5 rounded-full ${colors.bg} text-black shrink-0`}>Conhecer</span>
-                        </a>
-                    ))}
+                <div className="mt-10 w-full max-w-md animate-in slide-in-from-bottom-5 fade-in duration-1000 delay-500">
+                    <p className="text-[10px] text-yellow-500 uppercase font-bold tracking-widest text-center mb-3">Parceiro Oficial</p>
+                    <a href={p.link || '#'} target="_blank" rel="noopener noreferrer"
+                        key={p.id}
+                        className="w-full flex items-center gap-4 p-4 rounded-2xl bg-black/60 border border-yellow-500/30 hover:border-yellow-400/70 backdrop-blur-md shadow-lg shadow-yellow-500/10 transition-all group"
+                    >
+                        {p.logoUrl && <img src={p.logoUrl} alt={p.name} className="w-12 h-12 rounded-xl object-contain bg-white/5 p-1 shrink-0" />}
+                        <div className="flex-1 text-left">
+                            <p className="text-white font-bold text-sm group-hover:text-yellow-300 transition">{p.name}</p>
+                            {p.slogan && <p className="text-gray-400 text-xs mt-0.5">{p.slogan}</p>}
+                        </div>
+                        <span className={`text-xs font-bold px-3 py-1.5 rounded-full ${colors.bg} text-black shrink-0`}>Conhecer</span>
+                    </a>
+                    {homePartners.length > 1 && (
+                        <div className="flex justify-center gap-1.5 mt-3">
+                            {homePartners.map((_, i) => (
+                                <button key={i} onClick={() => setPartnerCarouselIndex(i)}
+                                    className={`w-1.5 h-1.5 rounded-full transition-all ${i === idx ? 'bg-yellow-500 w-4' : 'bg-gray-600'}`}
+                                />
+                            ))}
+                        </div>
+                    )}
                 </div>
             );
         })()}
