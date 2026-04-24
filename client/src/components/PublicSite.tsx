@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Song, ThemeColor, RadioStationConfig, Playlist, Vote, InboxMessage, ScheduleItem } from '../types';
-import { PlayIcon, PauseIcon, MusicIcon, ClockIcon, PhoneIcon, MegaphoneIcon, CalendarIcon, LockIcon, StarIcon, CheckIcon, XMarkIcon, HeartIcon, MicIcon } from './Icons';
+import { PlayIcon, PauseIcon, MusicIcon, ClockIcon, PhoneIcon, MegaphoneIcon, CalendarIcon, LockIcon, StarIcon, CheckIcon, XMarkIcon, HeartIcon, MicIcon, HomeIcon, UsersIcon } from './Icons';
 import LoginModal from './LoginModal';
 import { registerListener, updateListenerHeartbeat, unregisterListener } from '../services/dbService';
 
@@ -748,8 +748,8 @@ const PublicSite: React.FC<PublicSiteProps> = ({
             <div className="flex items-center gap-2 md:gap-10 text-xs md:text-base font-bold uppercase tracking-wide md:tracking-widest text-gray-300">
                 <button 
                     onClick={() => isOnePage ? scrollToSection('home') : setActiveTab('home')} 
-                    className={`hover:text-white transition-all hover:scale-105 ${!isOnePage && activeTab === 'home' ? `text-white border-b-2 ${colors.border}` : ''}`}
-                >Home</button>
+                    className={`hover:text-white transition-all hover:scale-105 flex items-center gap-1 ${!isOnePage && activeTab === 'home' ? `text-white border-b-2 ${colors.border}` : ''}`}
+                ><HomeIcon className="w-4 h-4" />Home</button>
                 
                 <button 
                     onClick={() => isOnePage ? scrollToSection('top10') : setActiveTab('top10')} 
@@ -768,13 +768,13 @@ const PublicSite: React.FC<PublicSiteProps> = ({
                 
                 <button 
                     onClick={() => isOnePage ? scrollToSection('about') : setActiveTab('about')} 
-                    className={`hover:text-white transition-all hover:scale-105 ${!isOnePage && activeTab === 'about' ? `text-white border-b-2 ${colors.border}` : ''}`}
-                >Quem Somos</button>
+                    className={`hover:text-white transition-all hover:scale-105 flex items-center gap-1 ${!isOnePage && activeTab === 'about' ? `text-white border-b-2 ${colors.border}` : ''}`}
+                ><UsersIcon className="w-4 h-4" />Quem Somos</button>
                 
                 <button 
                     onClick={() => isOnePage ? scrollToSection('contact') : setActiveTab('contact')} 
-                    className={`hover:text-white transition-all hover:scale-105 ${!isOnePage && activeTab === 'contact' ? `text-white border-b-2 ${colors.border}` : ''}`}
-                >Contato</button>
+                    className={`hover:text-white transition-all hover:scale-105 flex items-center gap-1 ${!isOnePage && activeTab === 'contact' ? `text-white border-b-2 ${colors.border}` : ''}`}
+                ><PhoneIcon className="w-4 h-4" />Contato</button>
                 
                 {/* Botão de Coração Piscando */}
                 <button 
