@@ -1,6 +1,6 @@
 
 import React, { useRef, useState } from 'react';
-import { RadioStationConfig, ThemeColor, Playlist } from '../types';
+import { RadioStationConfig, ThemeColor, Playlist, SponsorConfig } from '../types';
 import { CogIcon, UploadIcon, BoltIcon, ClockIcon, SignalIcon, ArchiveIcon } from './Icons';
 import { testFirebaseConnection, savePlaylist } from '../services/dbService';
 
@@ -269,7 +269,81 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({
                 </div>
             </div>
 
-            {/* 3. TIMEZONE & BACKUP & DIAGNOSTIC */}
+            {/* 3. PARCEIRO / PATROCINADOR */}
+            <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
+                <h3 className="text-lg font-bold text-white mb-1 border-b border-gray-800 pb-2 flex items-center gap-2">
+                    ⭐ Parceiro & Patrocinador
+                </h3>
+                <p className="text-xs text-gray-500 mb-5">Configure o parceiro que aparece no site público (banner, home e rodapé).</p>
+
+                {/* Toggle Activo */}
+                <div className="flex items-center justify-between mb-5">
+                    <span className="text-sm text-gray-300 font-medium">Exibir parceiro no site</span>
+                    <button
+                        onClick={() => handleChange('sponsor', { ...(config.sponsor || {}), active: !(config.sponsor?.active) } as SponsorConfig)}
+                        className={`relative w-12 h-6 rounded-full transition-colors ${ config.sponsor?.active ? 'bg-yellow-500' : 'bg-gray-700' }`}
+                    >
+                        <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${ config.sponsor?.active ? 'left-7' : 'left-1' }`} />
+                    </button>
+                </div>
+
+                <div className="mb-4">
+                    <label className="block text-xs text-gray-500 uppercase font-bold mb-2">Nome do Parceiro</label>
+                    <input
+                        type="text"
+                        value={config.sponsor?.name || ''}
+                        onChange={(e) => handleChange('sponsor', { ...(config.sponsor || {}), name: e.target.value } as SponsorConfig)}
+                        placeholder="Ex: Encontro Cristão App"
+                        className="w-full bg-gray-950 border border-gray-800 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-yellow-500"
+                    />
+                </div>
+
+                <div className="mb-4">
+                    <label className="block text-xs text-gray-500 uppercase font-bold mb-2">Slogan / Descrição Curta</label>
+                    <input
+                        type="text"
+                        value={config.sponsor?.slogan || ''}
+                        onChange={(e) => handleChange('sponsor', { ...(config.sponsor || {}), slogan: e.target.value } as SponsorConfig)}
+                        placeholder="Ex: Encontros cristãos de verdade"
+                        className="w-full bg-gray-950 border border-gray-800 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-yellow-500"
+                    />
+                </div>
+
+                <div className="mb-4">
+                    <label className="block text-xs text-gray-500 uppercase font-bold mb-2">URL do Logo (imagem)</label>
+                    <input
+                        type="text"
+                        value={config.sponsor?.logoUrl || ''}
+                        onChange={(e) => handleChange('sponsor', { ...(config.sponsor || {}), logoUrl: e.target.value } as SponsorConfig)}
+                        placeholder="https://seuapp.com/logo.png"
+                        className="w-full bg-gray-950 border border-gray-800 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-yellow-500"
+                    />
+                </div>
+
+                <div className="mb-4">
+                    <label className="block text-xs text-gray-500 uppercase font-bold mb-2">Link (URL de destino)</label>
+                    <input
+                        type="text"
+                        value={config.sponsor?.link || ''}
+                        onChange={(e) => handleChange('sponsor', { ...(config.sponsor || {}), link: e.target.value } as SponsorConfig)}
+                        placeholder="https://seuapp.com"
+                        className="w-full bg-gray-950 border border-gray-800 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-yellow-500"
+                    />
+                </div>
+
+                <div className="mb-2">
+                    <label className="block text-xs text-gray-500 uppercase font-bold mb-2">Email para &quot;Seja Nosso Parceiro&quot;</label>
+                    <input
+                        type="email"
+                        value={config.sponsor?.partnerEmail || ''}
+                        onChange={(e) => handleChange('sponsor', { ...(config.sponsor || {}), partnerEmail: e.target.value } as SponsorConfig)}
+                        placeholder="parcerias@radiocathedral.com"
+                        className="w-full bg-gray-950 border border-gray-800 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-yellow-500"
+                    />
+                </div>
+            </div>
+
+            {/* 4. TIMEZONE & BACKUP & DIAGNOSTIC */}
             <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
                 <h3 className="text-lg font-bold text-white mb-6 border-b border-gray-800 pb-2">Sistema</h3>
                 

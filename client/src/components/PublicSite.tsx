@@ -595,6 +595,26 @@ const PublicSite: React.FC<PublicSiteProps> = ({
                 </p>
             </div>
         )}
+
+        {/* SPONSOR CARD NA HOME */}
+        {config.sponsor?.active && (
+            <a
+                href={config.sponsor.link || '#'}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-10 w-full max-w-md flex items-center gap-4 p-4 rounded-2xl bg-black/60 border border-yellow-500/30 hover:border-yellow-400/70 backdrop-blur-md shadow-lg shadow-yellow-500/10 transition-all group animate-in slide-in-from-bottom-5 fade-in duration-1000 delay-500"
+            >
+                {config.sponsor.logoUrl && (
+                    <img src={config.sponsor.logoUrl} alt={config.sponsor.name} className="w-14 h-14 rounded-xl object-contain bg-white/5 p-1 shrink-0" />
+                )}
+                <div className="flex-1 text-left">
+                    <p className="text-[10px] text-yellow-500 uppercase font-bold tracking-widest mb-0.5">Parceiro Oficial</p>
+                    <p className="text-white font-bold text-sm group-hover:text-yellow-300 transition">{config.sponsor.name}</p>
+                    {config.sponsor.slogan && <p className="text-gray-400 text-xs mt-0.5">{config.sponsor.slogan}</p>}
+                </div>
+                <span className={`text-xs font-bold px-3 py-1.5 rounded-full ${colors.bg} text-black shrink-0`}>Conhecer</span>
+            </a>
+        )}
     </div>
   );
 
@@ -829,8 +849,47 @@ const PublicSite: React.FC<PublicSiteProps> = ({
 
       </main>
 
+      {/* BANNER FLUTUANTE DO PARCEIRO */}
+      {config.sponsor?.active && (
+          <div className="fixed bottom-20 right-4 z-40 animate-in slide-in-from-right-10 fade-in duration-700">
+              <a
+                  href={config.sponsor.link || '#'}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-black/80 border border-yellow-500/40 hover:border-yellow-400 backdrop-blur-md shadow-xl shadow-black/50 transition-all group max-w-[220px]"
+              >
+                  {config.sponsor.logoUrl && (
+                      <img src={config.sponsor.logoUrl} alt={config.sponsor.name} className="w-8 h-8 rounded-lg object-contain shrink-0" />
+                  )}
+                  <div className="flex-1 min-w-0">
+                      <p className="text-[9px] text-yellow-500 uppercase font-bold tracking-widest leading-none mb-0.5">Parceiro</p>
+                      <p className="text-white text-xs font-semibold truncate group-hover:text-yellow-300 transition">{config.sponsor.name}</p>
+                  </div>
+              </a>
+          </div>
+      )}
+
       {/* 5. MINIMALIST FOOTER */}
       <footer className="w-full z-20 py-6 text-center text-xs text-gray-500 bg-black/90 backdrop-blur-md border-t border-white/5 flex flex-col items-center gap-2">
+
+        {/* Sponsor no rodapé */}
+        {config.sponsor?.active && (
+            <div className="flex items-center gap-3 mb-3 pb-3 border-b border-white/5 w-full max-w-xs justify-center">
+                {config.sponsor.logoUrl && (
+                    <img src={config.sponsor.logoUrl} alt={config.sponsor.name} className="w-6 h-6 rounded object-contain" />
+                )}
+                <a
+                    href={config.sponsor.link || '#'}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-gray-400 hover:text-yellow-400 transition font-medium"
+                >
+                    {config.sponsor.name}
+                </a>
+                <span className="text-gray-700 text-[10px] uppercase tracking-wider">Parceiro</span>
+            </div>
+        )}
+
         <p>
           <a href="https://agencyl1.com" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-blue-400 transition">
             Agencyl1.com
@@ -853,6 +912,18 @@ const PublicSite: React.FC<PublicSiteProps> = ({
                 <LockIcon className="w-3 h-3" />
                 <span>Painel Admin</span>
             </button>
+            {config.sponsor?.partnerEmail && (
+                <>
+                    <span className="text-gray-800">|</span>
+                    <a
+                        href={`mailto:${config.sponsor.partnerEmail}?subject=Quero ser parceiro da ${config.name}`}
+                        className="flex items-center gap-1 text-gray-600 hover:text-yellow-400 transition"
+                    >
+                        <StarIcon className="w-3 h-3" />
+                        <span>Seja Nosso Parceiro</span>
+                    </a>
+                </>
+            )}
         </div>
       </footer>
 

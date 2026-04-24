@@ -89,6 +89,7 @@ export interface RadioStationConfig {
     whatsapp: string;
     email: string;
   }
+  sponsor?: SponsorConfig;
 }
 
 export enum PlaybackMode {
@@ -109,6 +110,16 @@ export interface PlayerState {
 
 export interface AIResponse {
   text: string;
+}
+
+// Configuração de Parceiro/Patrocinador
+export interface SponsorConfig {
+  active: boolean;
+  name: string;
+  slogan: string;
+  logoUrl: string;
+  link: string;
+  partnerEmail: string; // email para quem quer ser parceiro
 }
 
 // Configuração de Temas
