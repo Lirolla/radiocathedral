@@ -745,13 +745,21 @@ const PublicSite: React.FC<PublicSiteProps> = ({
             </div>
 
             {/* Menu Logic: Template 1 (Tabs) vs Template 2 (Scroll Anchors) */}
-            <div className="flex items-center gap-2 md:gap-10 text-xs md:text-base font-bold uppercase tracking-wide md:tracking-widest text-gray-300">
+            <div className="flex items-center gap-2 md:gap-8 text-xs md:text-base font-bold uppercase tracking-wide md:tracking-widest text-gray-300">
+                {/* Ícones da esquerda: Home + Quem Somos */}
                 <button 
                     onClick={() => isOnePage ? scrollToSection('home') : setActiveTab('home')} 
                     title="Home"
                     className={`hover:text-white transition-all hover:scale-125 ${!isOnePage && activeTab === 'home' ? `${colors.text}` : ''}`}
                 ><HomeIcon className="w-5 h-5" /></button>
-                
+
+                <button 
+                    onClick={() => isOnePage ? scrollToSection('about') : setActiveTab('about')} 
+                    title="Quem Somos"
+                    className={`hover:text-white transition-all hover:scale-125 ${!isOnePage && activeTab === 'about' ? `${colors.text}` : ''}`}
+                ><UsersIcon className="w-5 h-5" /></button>
+
+                {/* Itens centrais com texto */}
                 <button 
                     onClick={() => isOnePage ? scrollToSection('top10') : setActiveTab('top10')} 
                     className={`hover:text-white transition-all hover:scale-105 ${!isOnePage && activeTab === 'top10' ? `text-white border-b-2 ${colors.border}` : ''}`}
@@ -766,20 +774,14 @@ const PublicSite: React.FC<PublicSiteProps> = ({
                     onClick={() => isOnePage ? scrollToSection('schedule') : setActiveTab('schedule')} 
                     className={`hover:text-white transition-all hover:scale-105 ${!isOnePage && activeTab === 'schedule' ? `text-white border-b-2 ${colors.border}` : ''}`}
                 >Programação</button>
-                
-                <button 
-                    onClick={() => isOnePage ? scrollToSection('about') : setActiveTab('about')} 
-                    title="Quem Somos"
-                    className={`hover:text-white transition-all hover:scale-125 ${!isOnePage && activeTab === 'about' ? `${colors.text}` : ''}`}
-                ><UsersIcon className="w-5 h-5" /></button>
-                
+
+                {/* Ícones da direita: Contato + Coração */}
                 <button 
                     onClick={() => isOnePage ? scrollToSection('contact') : setActiveTab('contact')} 
                     title="Contato"
                     className={`hover:text-white transition-all hover:scale-125 ${!isOnePage && activeTab === 'contact' ? `${colors.text}` : ''}`}
                 ><PhoneIcon className="w-5 h-5" /></button>
                 
-                {/* Botão de Coração Piscando */}
                 <button 
                     onClick={() => isOnePage ? scrollToSection('love-story') : setActiveTab('love-story')} 
                     className={`hover:scale-125 transition-all ${!isOnePage && activeTab === 'love-story' ? `scale-125` : ''}`}
