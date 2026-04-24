@@ -19,6 +19,18 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
+  const sponsorLogoInputRef = useRef<HTMLInputElement>(null);
+
+  const handleSponsorLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        handleChange('sponsor', { ...(config.sponsor || {}), logoUrl: reader.result as string } as SponsorConfig);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
   const [testStatus, setTestStatus] = useState<{msg: string, success: boolean} | null>(null);
   const [isTesting, setIsTesting] = useState(false);
   const [isCreatingDefaults, setIsCreatingDefaults] = useState(false);
@@ -310,14 +322,38 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({
                 </div>
 
                 <div className="mb-4">
-                    <label className="block text-xs text-gray-500 uppercase font-bold mb-2">URL do Logo (imagem)</label>
-                    <input
-                        type="text"
-                        value={config.sponsor?.logoUrl || ''}
-                        onChange={(e) => handleChange('sponsor', { ...(config.sponsor || {}), logoUrl: e.target.value } as SponsorConfig)}
-                        placeholder="https://seuapp.com/logo.png"
-                        className="w-full bg-gray-950 border border-gray-800 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-yellow-500"
-                    />
+                    <label className="block text-xs text-gray-500 uppercase font-bold mb-2">Logo do Parceiro</label>
+                    <div className="flex items-center gap-4">
+                        <div className="w-16 h-16 bg-gray-950 rounded-lg border border-gray-800 flex items-center justify-center overflow-hidden relative group shrink-0">
+                            {config.sponsor?.logoUrl ? (
+                                <img src={config.sponsor.logoUrl} alt="Logo Parceiro" className="w-full h-full object-contain" />
+                            ) : (
+                                <span className="text-xs text-gray-600 text-center leading-tight">Sem Logo</span>
+                            )}
+                            {config.sponsor?.logoUrl && (
+                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
+                                    <button onClick={() => handleChange('sponsor', { ...(config.sponsor || {}), logoUrl: '' } as SponsorConfig)} className="text-xs text-red-400 hover:text-white">Remover</button>
+                                </div>
+                            )}
+                        </div>
+                        <div className="flex-1">
+                            <input
+                                type="file"
+                                accept="image/*"
+                                ref={sponsorLogoInputRef}
+                                className="hidden"
+                                onChange={handleSponsorLogoUpload}
+                            />
+                            <button
+                                onClick={() => sponsorLogoInputRef.current?.click()}
+                                className="bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-lg text-sm flex items-center gap-2 transition mb-2"
+                            >
+                                <UploadIcon className="w-4 h-4" />
+                                Carregar Logo
+                            </button>
+                            <p className="text-[10px] text-gray-500">PNG transparente recomendado</p>
+                        </div>
+                    </div>
                 </div>
 
                 <div className="mb-4">
