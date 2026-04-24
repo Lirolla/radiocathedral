@@ -1,11 +1,11 @@
 import { S3Client, PutObjectCommand, ListObjectsV2Command, DeleteObjectCommand } from "@aws-sdk/client-s3";
 
-// Configuração R2 (Cloudflare)
+// Configuração R2 (Cloudflare) - Bucket: radiocathedral
 const R2_ACCOUNT_ID = "023a0bad3f17632316cd10358db2201f";
-const R2_ACCESS_KEY_ID = "f24a769d6c501cc020b97ffc2de7c8ba";
-const R2_SECRET_ACCESS_KEY = "5d26e3f6400a920739e881f978687ef9a4257e1b01c1cd945ad488d1be2c3159";
-const R2_BUCKET_NAME = "radiotocai";
-const PUBLIC_R2_DOMAIN = "https://musica.radiotocai.com";
+const R2_ACCESS_KEY_ID = "ae3bc49157383b8283a5248df0ed0d4f";
+const R2_SECRET_ACCESS_KEY = "3157f4c4f2f9b13211faec54257fa7e4f876c7a1140f9c2aca6c2e74e01d254e";
+const R2_BUCKET_NAME = "radiocathedral";
+const PUBLIC_R2_DOMAIN = "https://gospel.radiocathedral.com";
 
 let r2Client: S3Client | null = null;
 
