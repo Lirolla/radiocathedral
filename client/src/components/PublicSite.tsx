@@ -748,8 +748,9 @@ const PublicSite: React.FC<PublicSiteProps> = ({
             <div className="flex items-center gap-2 md:gap-10 text-xs md:text-base font-bold uppercase tracking-wide md:tracking-widest text-gray-300">
                 <button 
                     onClick={() => isOnePage ? scrollToSection('home') : setActiveTab('home')} 
-                    className={`hover:text-white transition-all hover:scale-105 flex items-center gap-1 ${!isOnePage && activeTab === 'home' ? `text-white border-b-2 ${colors.border}` : ''}`}
-                ><HomeIcon className="w-4 h-4" />Home</button>
+                    title="Home"
+                    className={`hover:text-white transition-all hover:scale-125 ${!isOnePage && activeTab === 'home' ? `${colors.text}` : ''}`}
+                ><HomeIcon className="w-5 h-5" /></button>
                 
                 <button 
                     onClick={() => isOnePage ? scrollToSection('top10') : setActiveTab('top10')} 
@@ -768,13 +769,15 @@ const PublicSite: React.FC<PublicSiteProps> = ({
                 
                 <button 
                     onClick={() => isOnePage ? scrollToSection('about') : setActiveTab('about')} 
-                    className={`hover:text-white transition-all hover:scale-105 flex items-center gap-1 ${!isOnePage && activeTab === 'about' ? `text-white border-b-2 ${colors.border}` : ''}`}
-                ><UsersIcon className="w-4 h-4" />Quem Somos</button>
+                    title="Quem Somos"
+                    className={`hover:text-white transition-all hover:scale-125 ${!isOnePage && activeTab === 'about' ? `${colors.text}` : ''}`}
+                ><UsersIcon className="w-5 h-5" /></button>
                 
                 <button 
                     onClick={() => isOnePage ? scrollToSection('contact') : setActiveTab('contact')} 
-                    className={`hover:text-white transition-all hover:scale-105 flex items-center gap-1 ${!isOnePage && activeTab === 'contact' ? `text-white border-b-2 ${colors.border}` : ''}`}
-                ><PhoneIcon className="w-4 h-4" />Contato</button>
+                    title="Contato"
+                    className={`hover:text-white transition-all hover:scale-125 ${!isOnePage && activeTab === 'contact' ? `${colors.text}` : ''}`}
+                ><PhoneIcon className="w-5 h-5" /></button>
                 
                 {/* Botão de Coração Piscando */}
                 <button 
