@@ -177,7 +177,6 @@ function App() {
   const audioRef = useRef<HTMLAudioElement>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const silenceNodeRef = useRef<AudioBufferSourceNode | null>(null);
-  const sourceNodeRef = useRef<MediaElementAudioSourceNode | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -185,23 +184,18 @@ function App() {
   const [isTalkOver, setIsTalkOver] = useState(false);
   
   // --- IOS BACKGROUND AUDIO KEEPALIVE ---
-  // Cria um AudioContext com nó de silêncio para impedir que o iOS suspenda o áudio em background
+  // Usa um AudioContext separado com nó de silêncio para manter o iOS acordado em background.
+  // Não conectamos o <audio> ao AudioContext para não interferir no playback normal.
   const initAudioContext = () => {
-    if (audioContextRef.current || !audioRef.current) return;
+    if (audioContextRef.current) return;
     try {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
       if (!AudioCtx) return;
       const ctx = new AudioCtx();
       audioContextRef.current = ctx;
 
-      // Conecta o elemento de áudio ao contexto (apenas uma vez)
-      if (!sourceNodeRef.current) {
-        sourceNodeRef.current = ctx.createMediaElementSource(audioRef.current);
-        sourceNodeRef.current.connect(ctx.destination);
-      }
-
-      // Nó de silêncio: buffer de 1 segundo de zeros, em loop infinito
-      // Isso mantém o AudioContext "acordado" mesmo quando o iOS vai para background
+      // Nó de silêncio: buffer vazio em loop infinito.
+      // Mantém o AudioContext activo sem interferir no áudio do elemento <audio>.
       const silenceBuffer = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
       const silenceNode = ctx.createBufferSource();
       silenceNode.buffer = silenceBuffer;
@@ -210,7 +204,7 @@ function App() {
       silenceNode.start(0);
       silenceNodeRef.current = silenceNode;
 
-      console.log('[iOS Audio] AudioContext iniciado com nó de silêncio keepalive.');
+      console.log('[iOS Audio] AudioContext keepalive iniciado (sem interferir no playback).');
     } catch (e) {
       console.warn('[iOS Audio] Erro ao criar AudioContext:', e);
     }
