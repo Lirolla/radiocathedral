@@ -175,12 +175,78 @@ function App() {
 
   // --- AUDIO ENGINE ---
   const audioRef = useRef<HTMLAudioElement>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const silenceNodeRef = useRef<AudioBufferSourceNode | null>(null);
+  const sourceNodeRef = useRef<MediaElementAudioSourceNode | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(0.8);
   const [isTalkOver, setIsTalkOver] = useState(false);
   
+  // --- IOS BACKGROUND AUDIO KEEPALIVE ---
+  // Cria um AudioContext com nó de silêncio para impedir que o iOS suspenda o áudio em background
+  const initAudioContext = () => {
+    if (audioContextRef.current || !audioRef.current) return;
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      audioContextRef.current = ctx;
+
+      // Conecta o elemento de áudio ao contexto (apenas uma vez)
+      if (!sourceNodeRef.current) {
+        sourceNodeRef.current = ctx.createMediaElementSource(audioRef.current);
+        sourceNodeRef.current.connect(ctx.destination);
+      }
+
+      // Nó de silêncio: buffer de 1 segundo de zeros, em loop infinito
+      // Isso mantém o AudioContext "acordado" mesmo quando o iOS vai para background
+      const silenceBuffer = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+      const silenceNode = ctx.createBufferSource();
+      silenceNode.buffer = silenceBuffer;
+      silenceNode.loop = true;
+      silenceNode.connect(ctx.destination);
+      silenceNode.start(0);
+      silenceNodeRef.current = silenceNode;
+
+      console.log('[iOS Audio] AudioContext iniciado com nó de silêncio keepalive.');
+    } catch (e) {
+      console.warn('[iOS Audio] Erro ao criar AudioContext:', e);
+    }
+  };
+
+  useEffect(() => {
+    // Inicializa o AudioContext na primeira interacção do utilizador (obrigatório no iOS)
+    const handleFirstInteraction = () => {
+      initAudioContext();
+      if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
+        audioContextRef.current.resume();
+      }
+      document.removeEventListener('touchstart', handleFirstInteraction);
+      document.removeEventListener('click', handleFirstInteraction);
+    };
+    document.addEventListener('touchstart', handleFirstInteraction, { once: true });
+    document.addEventListener('click', handleFirstInteraction, { once: true });
+    return () => {
+      document.removeEventListener('touchstart', handleFirstInteraction);
+      document.removeEventListener('click', handleFirstInteraction);
+    };
+  }, []);
+
+  // Retoma o AudioContext quando a aba volta ao foco (iOS suspende o contexto em background)
+  useEffect(() => {
+    const handleVisibilityResume = () => {
+      if (!document.hidden && audioContextRef.current && audioContextRef.current.state === 'suspended') {
+        audioContextRef.current.resume().then(() => {
+          console.log('[iOS Audio] AudioContext retomado após voltar ao foco.');
+        });
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityResume);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityResume);
+  }, []);
+
   // --- KEYBOARD SHORTCUTS FOR VOLUME ---
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -236,7 +302,12 @@ function App() {
         ]
       });
 
-      navigator.mediaSession.setActionHandler('play', () => setIsPlaying(true));
+      navigator.mediaSession.setActionHandler('play', () => {
+        if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
+          audioContextRef.current.resume();
+        }
+        setIsPlaying(true);
+      });
       navigator.mediaSession.setActionHandler('pause', () => setIsPlaying(false));
       navigator.mediaSession.setActionHandler('previoustrack', () => playPrev());
       navigator.mediaSession.setActionHandler('nexttrack', () => playNext());
@@ -330,11 +401,12 @@ function App() {
   };
 
   const handleEnded = () => {
-    console.log('[Player] Música terminou. Chamando playNext em 500ms...');
-    setTimeout(() => { 
-      console.log('[Player] Executando playNext agora...');
-      playNext(); 
-    }, 500);
+    // IMPORTANTE: Sem setTimeout aqui! O iOS suspende timers em background,
+    // o que impedia a próxima música de tocar ao mudar de aba.
+    // O evento 'ended' do elemento <audio> é disparado pelo sistema operativo
+    // mesmo em background, por isso chamamos playNext directamente.
+    console.log('[Player] Música terminou. Chamando playNext directamente (iOS safe)...');
+    playNext();
   };
 
   // --- DB WRAPPERS ---
